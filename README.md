@@ -6,6 +6,40 @@ A supportive, private space to ask questions about **periods, PCOS, pregnancy**,
 
 ---
 
+## Recent changes (after last README update)
+
+Summary of updates made since the last README update:
+
+### Search & navigation
+- **Unified search** — One search box filters the current chat, saved chats (History), and journal entries. A “Search matches” summary shows counts for this chat, saved chats, and journal; History → Chats and Journal respect the active query. Placeholder/button text: “Search everything”.
+- **About the developer** — Hamburger menu includes “About the Developer” (links to `/about#developer`). The About page has a dedicated developer section with a short bio and icon links (LinkedIn, GitHub, website, email).
+
+### Chat & layout
+- **Chat panel** — Chat area kept compact with a fixed max height (e.g. 55rem). The input/typing bar no longer grows: footer and form use `shrink-0`, and the input has a fixed height so it stays a single line.
+- **Vercel build** — Resolved TypeScript error in `app/api/chat/route.ts` for Gemini `generateContent` (contents typed as `Part` and cast for the SDK so the build passes).
+
+### Dashboard
+- **Visuals** — Dashboard cards restyled with gradients, icons, and shadows. New “Your cycle at a glance” card with an SVG chart: last 30 days as colored bars (by flow), symptom horizontal bars from journal tags, and a “Her Chat” footer.
+- **Download chart** — “Download chart” button exports the cycle/symptom SVG as a PNG (via canvas) for users to save or share.
+- **Education from dashboard** — Dashboard header has “← Back to chat” and a dedicated “Education” button that opens Education and closes the dashboard (no need to go back to chat first). Menu “Education” also closes the dashboard when opened.
+
+### Small screens
+- **Narrow layout** — On viewports &lt; 640px, placeholders shorten to “Search” or “Ask anything…”, the Search button is icon-only, and spacing is tightened so the typing bar stays usable.
+- **Education** — Accessible from the dashboard via the “Education” button and from the hamburger menu; both use a shared `goToEducation()` handler that closes dashboard, history, and search and opens Education.
+
+### Mobile scroll (Education & Dashboard)
+- **Reliable scroll on mobile** — When opening **Education** or **Cycle dashboard** (from the menu or from the dashboard’s Education button), the app now:
+  1. Scrolls the **page** so the chat card is in view using `window.scrollTo` (reliable on iOS/Android).
+  2. Scrolls the **messages area** to the top (`listRef.scrollTop = 0`) so the Education or dashboard content is visible.
+  3. Scrolls the **Education or dashboard panel** into view with `scrollIntoView({ behavior: 'auto' })` after short delays (50 ms and 300 ms) so layout has time to settle on mobile.
+- **Implementation** — Shared helper `scrollChatSectionIntoView()`; refs `educationPanelRef`, `dashboardPanelRef`, and `chatSectionRef`; and ref callbacks on the Education panel so scrolling works even when the ref is set after the effect runs. All scroll behavior uses `behavior: 'auto'` for consistency on mobile.
+
+### Other
+- **Favicon** — Site favicon set to `herchatlogo.png` in `app/layout.tsx` (icon + shortcut).
+- **Env & Git** — `.env.local` remains gitignored; no env keys are committed. First commit/push and Vercel deploy (e.g. push to `main`) and fixing commit author email for Vercel checks were addressed in setup.
+
+---
+
 ## How it helps people (especially women)
 
 - **Judgment-free questions** — Ask about periods, discharge, cramps, pregnancy, UTIs, STIs, and more in everyday language.

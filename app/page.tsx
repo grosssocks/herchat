@@ -66,6 +66,9 @@ export default function Home() {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const firstMatchRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<HTMLDivElement | null>(null);
+  const educationPanelRef = useRef<HTMLDivElement | null>(null);
+  const dashboardPanelRef = useRef<HTMLDivElement | null>(null);
+  const chatSectionRef = useRef<HTMLElement | null>(null);
 
   const inputPrompts = [
     "Ask about periods, PCOS, pregnancy…",
@@ -531,6 +534,56 @@ export default function Home() {
     if (showSearch) searchInputRef.current?.focus();
   }, [showSearch]);
 
+  // Mobile-friendly: scroll page so chat section is in view using window.scrollTo (reliable on iOS/Android).
+  function scrollChatSectionIntoView() {
+    if (typeof window === "undefined") return;
+    const section = chatSectionRef.current;
+    const list = listRef.current;
+    if (section) {
+      const top = section.getBoundingClientRect().top + window.scrollY;
+      window.scrollTo({ top: Math.max(0, top - 12), left: 0, behavior: "auto" });
+    }
+    if (list) {
+      list.scrollTop = 0;
+    }
+  }
+
+  // When Education opens: bring chat into view (mobile), scroll list to top, then panel into view.
+  useEffect(() => {
+    if (!showEducation) return;
+    scrollChatSectionIntoView();
+    const t1 = setTimeout(scrollChatSectionIntoView, 50);
+    const t2 = setTimeout(() => {
+      scrollChatSectionIntoView();
+      const el = educationPanelRef.current;
+      if (el) {
+        el.scrollIntoView({ behavior: "auto", block: "start", inline: "nearest" });
+      }
+    }, 300);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [showEducation]);
+
+  // When Dashboard opens: same mobile-friendly scroll so dashboard is visible.
+  useEffect(() => {
+    if (!showDashboard) return;
+    scrollChatSectionIntoView();
+    const t1 = setTimeout(scrollChatSectionIntoView, 50);
+    const t2 = setTimeout(() => {
+      scrollChatSectionIntoView();
+      const el = dashboardPanelRef.current;
+      if (el) {
+        el.scrollIntoView({ behavior: "auto", block: "start", inline: "nearest" });
+      }
+    }, 300);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [showDashboard]);
+
   function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file || !file.type.startsWith("image/")) return;
@@ -544,6 +597,14 @@ export default function Home() {
   function clearImage() {
     setImageFile(null);
     setImagePreview(null);
+  }
+
+  function goToEducation() {
+    setShowDashboard(false);
+    setShowHistory(false);
+    setShowSearch(false);
+    setSearchQuery("");
+    setShowEducation(true);
   }
 
   function downloadChart() {
@@ -963,10 +1024,7 @@ export default function Home() {
                 type="button"
                 onClick={() => {
                   setShowMenu(false);
-                  setShowEducation(true);
-                  setShowHistory(false);
-                  setShowSearch(false);
-                  setSearchQuery("");
+                  goToEducation();
                 }}
                 className="flex w-full items-center gap-2 px-3 py-2 hover:bg-[#f5f3ff]"
               >
@@ -1046,7 +1104,7 @@ export default function Home() {
           </p>
         </section>
 
-        <section className="flex flex-1 flex-col min-h-0 max-h-[55rem]">
+        <section ref={chatSectionRef} className="flex flex-1 flex-col min-h-0 max-h-[55rem]">
           <div className="flex min-h-[28rem] max-h-[55rem] flex-1 flex-col overflow-hidden rounded-3xl bg-white/95 shadow-[0_8px_40px_rgba(249,168,212,0.12),0_0_0_1px_rgba(244,114,182,0.08)] backdrop-blur-md">
             {hasPeriodToday && (
               <div className="flex items-center gap-2 px-5 pt-3">
@@ -1257,8 +1315,8 @@ export default function Home() {
               )}
 
               {showDashboard ? (
-                <div className="space-y-4 text-[var(--text-small)] text-[#2d2430]">
-                  <div className="flex items-center justify-between gap-3">
+                <div ref={dashboardPanelRef} className="space-y-4 text-[var(--text-small)] text-[#2d2430]">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                       <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#fce7f3] to-[#f5d0fe] text-lg shadow-[0_2px_8px_rgba(249,168,212,0.25)]">
                         📊
@@ -1267,13 +1325,22 @@ export default function Home() {
                         Cycle dashboard
                       </h2>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowDashboard(false)}
-                      className="shrink-0 rounded-xl border border-[#e9e0f0] bg-white/90 px-3 py-2 text-[0.75rem] font-medium text-[#5c4d5a] shadow-sm hover:bg-[#f5f3ff] hover:border-[#c4b5fd]/50 hover:text-[#6d28d9] transition"
-                    >
-                      ← Back to chat
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowDashboard(false)}
+                        className="shrink-0 rounded-xl border border-[#e9e0f0] bg-white/90 px-3 py-2.5 text-[0.75rem] font-medium text-[#5c4d5a] shadow-sm hover:bg-[#f5f3ff] hover:border-[#c4b5fd]/50 hover:text-[#6d28d9] transition min-h-[2.5rem]"
+                      >
+                        ← Back to chat
+                      </button>
+                      <button
+                        type="button"
+                        onClick={goToEducation}
+                        className="shrink-0 rounded-xl border border-pink-200/80 bg-[#fdf2f8] px-3 py-2.5 text-[0.75rem] font-medium text-[#be185d] shadow-sm hover:bg-[#fce7f3] hover:border-pink-300/80 transition min-h-[2.5rem]"
+                      >
+                        📚 Education
+                      </button>
+                    </div>
                   </div>
 
                   <div className="grid gap-4 sm:grid-cols-2">
@@ -1450,7 +1517,19 @@ export default function Home() {
                   </div>
                 </div>
               ) : showEducation ? (
-                <div className="space-y-3 text-[var(--text-small)] text-[#2d2430]">
+                <div
+                  ref={(el) => {
+                    educationPanelRef.current = el;
+                    if (el) {
+                      requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                          el.scrollIntoView({ behavior: "auto", block: "start", inline: "nearest" });
+                        });
+                      });
+                    }
+                  }}
+                  className="animate-education-in space-y-3 text-[var(--text-small)] text-[#2d2430]"
+                >
                   <div className="flex items-center justify-between">
                     <h2 className="text-[0.95rem] font-semibold text-[#4b3b5a]">
                       Education
