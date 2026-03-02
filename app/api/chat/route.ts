@@ -78,27 +78,22 @@ export async function POST(req: NextRequest) {
     // For reliability, send only the latest user turn (plus optional image)
     // as a single-user request rather than a full multi-turn history. This
     // guarantees the first content is always from the user.
-    let contents: Array<{ role: "user"; parts: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }> }>;
-    if (rawBase64 && imageMimeType) {
-      contents = [
-        {
-          role: "user",
-          parts: [
-            { inlineData: { mimeType: imageMimeType, data: rawBase64 } },
-            { text: textContent },
-          ],
-        },
-      ];
-    } else {
-      contents = [
-        {
-          role: "user",
-          parts: [{ text: textContent }],
-        },
-      ];
-    }
+    type Part = { text: string } | { inlineData: { mimeType: string; data: string } };
+    const contents: Array<{ role: "user"; parts: Part[] }> =
+      rawBase64 && imageMimeType
+        ? [
+            {
+              role: "user",
+              parts: [
+                { inlineData: { mimeType: imageMimeType, data: rawBase64 } },
+                { text: textContent },
+              ],
+            },
+          ]
+        : [{ role: "user", parts: [{ text: textContent }] }];
 
-    const result = await model.generateContent({ contents });
+    // SDK Part type is a union that includes CodeExecutionResultPart; our parts are valid at runtime
+    const result = await model.generateContent({ contents: contents as never });
 
     const reply =
       result.response.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ??
