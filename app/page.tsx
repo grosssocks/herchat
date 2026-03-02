@@ -54,6 +54,7 @@ export default function Home() {
   const [showHistory, setShowHistory] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [showEducation, setShowEducation] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
   const [chatHistory, setChatHistory] = useState<SavedChat[]>([]);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [journalMode, setJournalMode] = useState<JournalEntryType | null>(null);
@@ -64,6 +65,7 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const firstMatchRef = useRef<HTMLDivElement | null>(null);
+  const chartRef = useRef<HTMLDivElement | null>(null);
 
   const inputPrompts = [
     "Ask about periods, PCOS, pregnancy…",
@@ -71,7 +73,16 @@ export default function Home() {
     "Ask about trying to get pregnant…",
     "Ask about pain, bleeding, or symptoms…",
   ];
+  const inputPromptsShort = "Ask anything…";
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
+  const [isNarrowScreen, setIsNarrowScreen] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsNarrowScreen(typeof window !== "undefined" && window.innerWidth < 640);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
   const todayIso = new Date().toISOString().slice(0, 10);
   const hasPeriodToday = periodEntries.some((p) => p.date === todayIso);
@@ -106,6 +117,35 @@ export default function Home() {
 
   const visibleHistoryChats = showSearch && query ? historyMatches : chatHistory;
   const visibleJournalEntries = showSearch && query ? journalMatches : journalEntries;
+
+  const sortedPeriodEntries = [...periodEntries].sort((a, b) => b.date.localeCompare(a.date));
+  const symptomCounts = journalEntries.reduce<Record<string, number>>((acc, entry) => {
+    for (const tag of entry.tags) {
+      acc[tag] = (acc[tag] ?? 0) + 1;
+    }
+    return acc;
+  }, {});
+  const topSymptoms = Object.entries(symptomCounts)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 6);
+
+  const last30Days = (() => {
+    const out: { date: string; flow?: PeriodFlow }[] = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const date = d.toISOString().slice(0, 10);
+      const entry = periodEntries.find((p) => p.date === date);
+      out.push({ date, flow: entry?.flow });
+    }
+    return out;
+  })();
+  const periodFlowColors: Record<PeriodFlow, string> = {
+    heavy: "#be123c",
+    medium: "#e11d48",
+    light: "#fda4af",
+    spotting: "#a78bfa",
+  };
 
   // Load and persist current chat messages in localStorage so they survive refresh
   useEffect(() => {
@@ -506,6 +546,36 @@ export default function Home() {
     setImagePreview(null);
   }
 
+  function downloadChart() {
+    const wrapper = chartRef.current;
+    const svg = wrapper?.querySelector("svg");
+    if (!svg || typeof document === "undefined") return;
+    const svgClone = svg.cloneNode(true) as SVGSVGElement;
+    const w = 600;
+    const h = 320;
+    svgClone.setAttribute("width", String(w));
+    svgClone.setAttribute("height", String(h));
+    const svgString = new XMLSerializer().serializeToString(svgClone);
+    const dataUrl = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgString)));
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.fillStyle = "#fdf2f8";
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      const a = document.createElement("a");
+      a.href = canvas.toDataURL("image/png");
+      a.download = "her-chat-cycle-chart.png";
+      a.click();
+    };
+    img.onerror = () => {};
+    img.src = dataUrl;
+  }
+
   function handleDeleteChat(id: string) {
     setChatHistory((prev) => prev.filter((chat) => chat.id !== id));
   }
@@ -851,6 +921,23 @@ export default function Home() {
                   About the developer
                 </a>
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMenu(false);
+                  setShowDashboard(true);
+                  setShowEducation(false);
+                  setShowHistory(false);
+                  setShowSearch(false);
+                  setSearchQuery("");
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 hover:bg-[#f5f3ff]"
+              >
+                <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#e0e7ff] text-[0.7rem]">
+                  📊
+                </span>
+                <span>Cycle dashboard</span>
+              </button>
               <div className="border-b border-[#f3e7f5] px-3 pb-2 pt-2">
                 <p className="text-[0.72rem] font-medium text-[#7a6d7a]">
                   Location (optional)
@@ -959,8 +1046,8 @@ export default function Home() {
           </p>
         </section>
 
-        <section className="flex flex-1 flex-col">
-          <div className="flex h-full min-h-[28rem] flex-col overflow-hidden rounded-3xl bg-white/95 shadow-[0_8px_40px_rgba(249,168,212,0.12),0_0_0_1px_rgba(244,114,182,0.08)] backdrop-blur-md">
+        <section className="flex flex-1 flex-col min-h-0 max-h-[55rem]">
+          <div className="flex min-h-[28rem] max-h-[55rem] flex-1 flex-col overflow-hidden rounded-3xl bg-white/95 shadow-[0_8px_40px_rgba(249,168,212,0.12),0_0_0_1px_rgba(244,114,182,0.08)] backdrop-blur-md">
             {hasPeriodToday && (
               <div className="flex items-center gap-2 px-5 pt-3">
                 <img
@@ -1022,6 +1109,7 @@ export default function Home() {
                     setJournalMode("checkin");
                     setShowHistory(false);
                     setShowEducation(false);
+                    setShowDashboard(false);
                     setShowSearch(false);
                     setSearchQuery("");
                     const prompt: Message = {
@@ -1041,6 +1129,7 @@ export default function Home() {
                     setJournalMode("snapshot");
                     setShowHistory(false);
                     setShowEducation(false);
+                    setShowDashboard(false);
                     setShowSearch(false);
                     setSearchQuery("");
                     const prompt: Message = {
@@ -1060,6 +1149,7 @@ export default function Home() {
                     setJournalMode("reflection");
                     setShowHistory(false);
                     setShowEducation(false);
+                    setShowDashboard(false);
                     setShowSearch(false);
                     setSearchQuery("");
                     const prompt: Message = {
@@ -1085,6 +1175,7 @@ export default function Home() {
                       onClick={() => {
                         setShowHistory(false);
                         setShowEducation(false);
+                        setShowDashboard(false);
                         setShowSearch(false);
                         setSearchQuery("");
                         logPeriodToday(flow);
@@ -1100,6 +1191,7 @@ export default function Home() {
                       onClick={() => {
                         setShowHistory(false);
                         setShowEducation(false);
+                        setShowDashboard(false);
                         setShowSearch(false);
                         setSearchQuery("");
                         unlogPeriodToday();
@@ -1117,7 +1209,7 @@ export default function Home() {
               ref={listRef}
               className="flex-1 space-y-4 overflow-y-auto px-5 py-4"
             >
-              {showSearch && query && !showEducation && !showHistory && (
+              {showSearch && query && !showEducation && !showHistory && !showDashboard && (
                 <div className="space-y-2 rounded-2xl border border-[#efe8f2] bg-white/80 px-3 py-2 text-[0.8rem] text-[#5c4d5a]">
                   <p className="text-[0.75rem] font-medium text-[#4b3b5a]">
                     Search matches
@@ -1164,7 +1256,200 @@ export default function Home() {
                 </div>
               )}
 
-              {showEducation ? (
+              {showDashboard ? (
+                <div className="space-y-4 text-[var(--text-small)] text-[#2d2430]">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#fce7f3] to-[#f5d0fe] text-lg shadow-[0_2px_8px_rgba(249,168,212,0.25)]">
+                        📊
+                      </span>
+                      <h2 className="text-[1rem] font-semibold bg-gradient-to-r from-[#be185d] to-[#7c3aed] bg-clip-text text-transparent">
+                        Cycle dashboard
+                      </h2>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowDashboard(false)}
+                      className="shrink-0 rounded-xl border border-[#e9e0f0] bg-white/90 px-3 py-2 text-[0.75rem] font-medium text-[#5c4d5a] shadow-sm hover:bg-[#f5f3ff] hover:border-[#c4b5fd]/50 hover:text-[#6d28d9] transition"
+                    >
+                      ← Back to chat
+                    </button>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="overflow-hidden rounded-2xl border border-pink-200/60 bg-gradient-to-br from-[#fdf2f8] via-white to-[#fce7f3]/50 px-4 py-4 shadow-[0_4px_20px_rgba(249,168,212,0.12)] ring-1 ring-pink-100/50">
+                      <div className="mb-3 flex items-center gap-2">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-100/80 text-sm">🌸</span>
+                        <h3 className="text-[0.9rem] font-semibold text-[#831843]">
+                          Period overview
+                        </h3>
+                      </div>
+                      {sortedPeriodEntries.length === 0 ? (
+                        <p className="text-[0.8rem] text-[#9a8d98] leading-snug">
+                          You haven&apos;t logged any period days here yet. Use the period buttons above to add today.
+                        </p>
+                      ) : (
+                        <>
+                          <p className="mb-3 text-[0.8rem] text-[#7a6d7a]">
+                            You&apos;ve logged{" "}
+                            <span className="font-bold text-rose-600">
+                              {sortedPeriodEntries.length}
+                            </span>{" "}
+                            period day{sortedPeriodEntries.length === 1 ? "" : "s"}.
+                          </p>
+                          <ul className="space-y-2">
+                            {sortedPeriodEntries.slice(0, 6).map((p) => (
+                              <li
+                                key={p.id}
+                                className="flex items-center justify-between rounded-xl bg-white/80 px-3 py-2 shadow-[0_1px_6px_rgba(244,114,182,0.1)] border border-pink-100/60"
+                              >
+                                <span className="text-[0.8rem] font-medium text-[#4b3b5a]">
+                                  {new Date(p.date).toLocaleDateString(undefined, {
+                                    month: "short",
+                                    day: "numeric",
+                                  })}
+                                </span>
+                                <span className="rounded-full bg-gradient-to-r from-rose-100 to-pink-100 px-2.5 py-0.5 text-[0.75rem] font-medium capitalize text-rose-600 ring-1 ring-rose-200/50">
+                                  {p.flow}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="overflow-hidden rounded-2xl border border-violet-200/60 bg-gradient-to-br from-[#f5f3ff] via-white to-[#ede9fe]/50 px-4 py-4 shadow-[0_4px_20px_rgba(196,181,253,0.12)] ring-1 ring-violet-100/50">
+                      <div className="mb-3 flex items-center gap-2">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100/80 text-sm">💜</span>
+                        <h3 className="text-[0.9rem] font-semibold text-[#5b21b6]">
+                          Symptom patterns
+                        </h3>
+                      </div>
+                      {topSymptoms.length === 0 ? (
+                        <p className="text-[0.8rem] text-[#9a8d98] leading-snug">
+                          Once you start using the journal, I&apos;ll highlight patterns like cramps, bloating, or mood changes here.
+                        </p>
+                      ) : (
+                        <>
+                          <p className="mb-3 text-[0.8rem] text-[#7a6d7a]">
+                            From your journal entries:
+                          </p>
+                          <ul className="space-y-2">
+                            {topSymptoms.map(([tag, count]) => (
+                              <li
+                                key={tag}
+                                className="flex items-center justify-between rounded-xl bg-white/80 px-3 py-2 shadow-[0_1px_6px_rgba(139,92,246,0.08)] border border-violet-100/60"
+                              >
+                                <span className="text-[0.8rem] font-medium capitalize text-[#4b3b5a]">
+                                  {tag.replace(/-/g, " ")}
+                                </span>
+                                <span className="rounded-full bg-violet-100/80 px-2.5 py-0.5 text-[0.75rem] font-semibold text-violet-700">
+                                  {count}×
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div
+                    ref={chartRef}
+                    className="overflow-hidden rounded-2xl border border-pink-200/60 bg-gradient-to-br from-[#fdf2f8] via-white to-[#f5f3ff] px-4 py-4 shadow-[0_4px_20px_rgba(249,168,212,0.1)] ring-1 ring-pink-100/50"
+                  >
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-rose-100/80 text-sm">📈</span>
+                        <h3 className="text-[0.9rem] font-semibold text-[#831843]">
+                          Your cycle at a glance
+                        </h3>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={downloadChart}
+                        className="shrink-0 rounded-xl border border-[#e9e0f0] bg-white px-3 py-2 text-[0.75rem] font-medium text-[#5c4d5a] shadow-sm hover:bg-[#f5f3ff] hover:border-[#c4b5fd]/50 hover:text-[#6d28d9] transition"
+                      >
+                        Download chart
+                      </button>
+                    </div>
+                    <div className="min-h-[200px] w-full">
+                      <svg
+                        viewBox="0 0 600 320"
+                        className="h-auto w-full max-w-full"
+                        aria-label="Cycle and symptom chart"
+                      >
+                        <rect width="600" height="320" fill="#fdf2f8" />
+                        <text x="300" y="22" textAnchor="middle" fill="#831843" fontSize="14" fontWeight="600" fontFamily="system-ui, sans-serif">
+                          Period days (last 30 days)
+                        </text>
+                        {last30Days.map((day, i) => {
+                          const x = 20 + (i / 29) * 560;
+                          const hasFlow = day.flow != null;
+                          const fill = hasFlow ? periodFlowColors[day.flow!] : "#e9e0f0";
+                          return (
+                            <g key={day.date}>
+                              <rect
+                                x={x}
+                                y={36}
+                                width={14}
+                                height={24}
+                                rx={3}
+                                fill={fill}
+                                stroke={hasFlow ? "#be185d40" : "#d4d4d8"}
+                                strokeWidth="0.5"
+                              />
+                            </g>
+                          );
+                        })}
+                        <text x="20" y="88" fill="#5b21b6" fontSize="12" fontWeight="600" fontFamily="system-ui, sans-serif">
+                          Symptoms
+                        </text>
+                        {topSymptoms.length > 0 ? (
+                          topSymptoms.map(([tag, count], i) => {
+                            const y = 100 + i * 28;
+                            const maxCount = Math.max(...topSymptoms.map(([, c]) => c), 1);
+                            const barW = (count / maxCount) * 200;
+                            return (
+                              <g key={tag}>
+                                <text x="20" y={y + 10} fill="#4b3b5a" fontSize="11" fontFamily="system-ui, sans-serif">
+                                  {tag.replace(/-/g, " ")}
+                                </text>
+                                <rect x="120" y={y - 8} width={barW} height={14} rx={4} fill="#a78bfa" fillOpacity="0.8" />
+                                <text x={128 + barW} y={y + 10} fill="#5c4d5a" fontSize="10" fontFamily="system-ui, sans-serif">
+                                  {count}×
+                                </text>
+                              </g>
+                            );
+                          })
+                        ) : (
+                          <text x="20" y="115" fill="#9a8d98" fontSize="11" fontFamily="system-ui, sans-serif">
+                            No journal tags yet
+                          </text>
+                        )}
+                        <text x="20" y="300" fill="#9a8d98" fontSize="9" fontFamily="system-ui, sans-serif">
+                          Her Chat · For personal reference only
+                        </text>
+                      </svg>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-amber-200/60 bg-gradient-to-br from-[#fffbeb]/80 via-white to-[#fef3c7]/40 px-4 py-3 shadow-[0_2px_12px_rgba(245,158,11,0.06)]">
+                    <div className="flex items-start gap-2">
+                      <span className="mt-0.5 shrink-0 text-base" aria-hidden>💡</span>
+                      <div>
+                        <h3 className="text-[0.85rem] font-semibold text-[#92400e]">
+                          How to use this
+                        </h3>
+                        <p className="mt-1 text-[0.8rem] text-[#78716c] leading-snug">
+                          This dashboard helps you notice patterns over time—not to label anything as “good” or “bad”. If you see changes that worry you, that&apos;s a good time to bring these notes to a provider.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : showEducation ? (
                 <div className="space-y-3 text-[var(--text-small)] text-[#2d2430]">
                   <div className="flex items-center justify-between">
                     <h2 className="text-[0.95rem] font-semibold text-[#4b3b5a]">
@@ -1508,7 +1793,7 @@ export default function Home() {
                 ) : null
               )}
 
-              {!showEducation && !showHistory &&
+              {!showEducation && !showHistory && !showDashboard &&
                 (filteredMessages.length === 0 && searchQuery.trim() ? (
                   <p className="py-4 text-center text-[#7a6d7a] text-[var(--text-small)]">
                     No messages match &quot;{searchQuery.trim()}&quot;
@@ -1612,7 +1897,7 @@ export default function Home() {
                 ))}
             </div>
 
-            <footer className="border-t border-pink-100/80 bg-gradient-to-r from-[#fdf2f8]/90 to-[#faf5ff]/90 px-5 py-3.5 backdrop-blur-sm">
+            <footer className="shrink-0 border-t border-pink-100/80 bg-gradient-to-r from-[#fdf2f8]/90 to-[#faf5ff]/90 px-5 py-3.5 backdrop-blur-sm">
               {imagePreview && (
                 <div className="mb-3 flex items-center gap-2">
                   <img
@@ -1640,7 +1925,7 @@ export default function Home() {
                   }
                   handleSend(e);
                 }}
-                className="flex items-center gap-3"
+                className="flex min-h-0 shrink-0 items-center gap-2 sm:gap-3"
               >
                 <input
                   ref={fileInputRef}
@@ -1668,9 +1953,17 @@ export default function Home() {
                   type="text"
                   value={showSearch ? searchQuery : input}
                   onChange={(e) => (showSearch ? setSearchQuery(e.target.value) : setInput(e.target.value))}
-                  placeholder={showSearch ? "Search everything" : inputPrompts[placeholderIndex]}
+                  placeholder={
+                    showSearch
+                      ? isNarrowScreen
+                        ? "Search"
+                        : "Search everything"
+                      : isNarrowScreen
+                        ? inputPromptsShort
+                        : inputPrompts[placeholderIndex]
+                  }
                   autoComplete={showSearch ? "off" : undefined}
-                  className="flex-1 rounded-2xl border border-[#e9e0f0] bg-white px-4 py-2.5 text-[#2d2430] outline-none placeholder:text-[#9a8d98] focus:border-[#a78bfa] focus:ring-2 focus:ring-[#c4b5fd]/40 text-[var(--text-small)] leading-[var(--text-small--line)]"
+                  className="h-10 min-h-10 max-h-10 min-w-[7rem] flex-1 rounded-2xl border border-[#e9e0f0] bg-white px-3 sm:px-4 py-2 text-[#2d2430] outline-none placeholder:text-[#5c4d5a] focus:border-[#a78bfa] focus:ring-2 focus:ring-[#c4b5fd]/40 text-[var(--text-small)] leading-[var(--text-small--line)]"
                 />
                 <button
                   type="button"
@@ -1682,20 +1975,20 @@ export default function Home() {
                       setShowSearch(true);
                     }
                   }}
-                  className="flex h-10 shrink-0 items-center gap-1.5 rounded-2xl border border-[#e9e0f0] bg-white px-3 py-2.5 text-[#5c4d5a] hover:bg-[#f5f3ff] hover:text-[#6d28d9] focus:outline-none focus:ring-2 focus:ring-[#c4b5fd]/40"
+                  className="flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-2xl border border-[#e9e0f0] bg-white px-2.5 py-2.5 text-[#5c4d5a] hover:bg-[#f5f3ff] hover:text-[#6d28d9] focus:outline-none focus:ring-2 focus:ring-[#c4b5fd]/40 sm:px-3"
                   title={showSearch ? "Close search" : "Search everything"}
                   aria-label={showSearch ? "Close search" : "Search everything"}
                 >
                   <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
-                  <span className="text-[var(--text-caption)]">{showSearch ? "Close" : "Search"}</span>
+                  <span className="hidden text-[var(--text-caption)] sm:inline">{showSearch ? "Close" : "Search"}</span>
                 </button>
                 {!showSearch && (
                   <button
                     type="submit"
                     disabled={isLoading || (!input.trim() && !imageFile)}
-                    className="inline-flex items-center justify-center rounded-2xl bg-gradient-to-r from-[#c2417a] to-[#9333ea] px-5 py-2.5 font-medium text-white shadow-[0_4px_14px_rgba(194,65,122,0.3)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 text-[var(--text-small)] leading-[var(--text-small--line)]"
+                    className="inline-flex h-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-r from-[#c2417a] to-[#9333ea] px-3 py-2.5 font-medium text-white shadow-[0_4px_14px_rgba(194,65,122,0.3)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 text-[var(--text-small)] leading-[var(--text-small--line)] sm:px-5"
                   >
                     {isLoading ? "…" : "Send"}
                   </button>
