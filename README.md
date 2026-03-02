@@ -32,7 +32,7 @@ Summary of updates made since the last README update:
   1. Scrolls the **page** so the chat card is in view using `window.scrollTo` (reliable on iOS/Android).
   2. Scrolls the **messages area** to the top (`listRef.scrollTop = 0`) so the Education or dashboard content is visible.
   3. Scrolls the **Education or dashboard panel** into view with `scrollIntoView({ behavior: 'auto' })` after short delays (50 ms and 300 ms) so layout has time to settle on mobile.
-- **Implementation** — Shared helper `scrollChatSectionIntoView()`; refs `educationPanelRef`, `dashboardPanelRef`, and `chatSectionRef`; and ref callbacks on the Education panel so scrolling works even when the ref is set after the effect runs. All scroll behavior uses `behavior: 'auto'` for consistency on mobile.
+- **Implementation** — Shared helper `scrollChatSectionIntoView()`; refs `educationPanelRef`, `dashboardPanelRef`, and `chatSectionRef`. Scroll runs only in `useEffect` when `showEducation` or `showDashboard` becomes true (no ref-callback scroll), so opening the hamburger menu while Education or Dashboard is open does not trigger an unwanted scroll to the chatbox. All scroll behavior uses `behavior: 'auto'` for consistency on mobile.
 
 ### Other
 - **Favicon** — Site favicon set to `herchatlogo.png` in `app/layout.tsx` (icon + shortcut).

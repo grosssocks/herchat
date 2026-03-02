@@ -1517,19 +1517,7 @@ export default function Home() {
                   </div>
                 </div>
               ) : showEducation ? (
-                <div
-                  ref={(el) => {
-                    educationPanelRef.current = el;
-                    if (el) {
-                      requestAnimationFrame(() => {
-                        requestAnimationFrame(() => {
-                          el.scrollIntoView({ behavior: "auto", block: "start", inline: "nearest" });
-                        });
-                      });
-                    }
-                  }}
-                  className="animate-education-in space-y-3 text-[var(--text-small)] text-[#2d2430]"
-                >
+                <div ref={educationPanelRef} className="animate-education-in space-y-3 text-[var(--text-small)] text-[#2d2430]">
                   <div className="flex items-center justify-between">
                     <h2 className="text-[0.95rem] font-semibold text-[#4b3b5a]">
                       Education
