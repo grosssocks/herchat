@@ -39,6 +39,34 @@ function buildQuery(intent: DoctorsRequestBody["intent"], location: string) {
   return `${base} in ${location}`;
 }
 
+async function fetchPlaces(
+  apiKey: string,
+  query: string,
+): Promise<{ results: PlaceResult[]; status: string; error_message?: string }> {
+  const url = new URL("https://maps.googleapis.com/maps/api/place/textsearch/json");
+  url.searchParams.set("query", query);
+  url.searchParams.set("key", apiKey);
+  const res = await fetch(url.toString());
+  const data = (await res.json()) as {
+    results?: PlaceResult[];
+    status?: string;
+    error_message?: string;
+  };
+  if (!res.ok) {
+    console.error("[Her Chat] Places HTTP error:", res.status, data.error_message ?? data);
+    return {
+      results: [],
+      status: "HTTP_ERROR",
+      error_message: data.error_message ?? `HTTP ${res.status}`,
+    };
+  }
+  return {
+    results: data.results ?? [],
+    status: data.status ?? "UNKNOWN",
+    error_message: data.error_message,
+  };
+}
+
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json().catch(() => ({}))) as DoctorsRequestBody;
@@ -56,43 +84,55 @@ export async function POST(req: NextRequest) {
     }
 
     const apiKey = getPlacesApiKey();
-    const query = buildQuery(intent, location);
+    const primaryQuery = buildQuery(intent, location);
 
-    const url = new URL("https://maps.googleapis.com/maps/api/place/textsearch/json");
-    url.searchParams.set("query", query);
-    url.searchParams.set("key", apiKey);
+    let data = await fetchPlaces(apiKey, primaryQuery);
 
-    const res = await fetch(url.toString());
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      console.error("Google Places error:", res.status, text);
+    if (data.status && data.status !== "OK" && data.status !== "ZERO_RESULTS") {
+      console.error("[Her Chat] Google Places API:", data.status, data.error_message);
       return new Response(
         JSON.stringify({
-          error: "Failed to fetch places from Google.",
+          error: data.error_message ?? "Places API error.",
+          places: [],
         }),
         {
-          status: 502,
+          status: 200,
           headers: { "Content-Type": "application/json" },
         },
       );
     }
 
-    const data = (await res.json()) as {
-      results?: PlaceResult[];
-      status?: string;
-      error_message?: string;
-    };
+    let results = data.results;
 
-    if (data.status && data.status !== "OK" && data.status !== "ZERO_RESULTS") {
-      console.error("[Her Chat] Google Places API status:", data.status, data.error_message);
+    if (results.length === 0 && intent === "gyn") {
+      const fallbackQueries = [
+        `OB-GYN clinic ${location}`,
+        `gynecologist ${location}`,
+        `women health clinic ${location}`,
+      ];
+      for (const q of fallbackQueries) {
+        const next = await fetchPlaces(apiKey, q);
+        if (next.status === "OK" && (next.results?.length ?? 0) > 0) {
+          results = next.results;
+          console.debug("[Her Chat] Places found with fallback query:", q);
+          break;
+        }
+      }
     }
-    if (data.status === "ZERO_RESULTS" || (data.results ?? []).length === 0) {
-      console.debug("[Her Chat] Google Places returned 0 results for query:", query);
+
+    if (results.length === 0) {
+      console.debug("[Her Chat] No places for location:", location);
     }
 
-    const results = (data.results ?? []).slice(0, 5);
+    const seenIds = new Set<string>();
+    const uniqueResults = results.filter((r) => {
+      const id = r.place_id ?? r.name;
+      if (seenIds.has(id)) return false;
+      seenIds.add(id);
+      return true;
+    });
 
-    const places: DoctorsResponse["places"] = results.map((r) => {
+    const places: DoctorsResponse["places"] = uniqueResults.slice(0, 5).map((r) => {
       const address = r.formatted_address ?? "";
       const mapsUrl = r.place_id
         ? `https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(r.place_id)}`
