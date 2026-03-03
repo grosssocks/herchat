@@ -75,7 +75,8 @@ export async function POST(req: NextRequest) {
         "Never diagnose or prescribe. Stay accurate, sex-positive, and kind. " +
         "If the user writes in a language other than English, reply in that same language so they can read it comfortably. You may use Latin/English letters (e.g. transliteration) if that's how they wrote or if it's standard for that language; otherwise use the script they used. " +
         "Important: Keep the same language for the whole conversation. If the user has been writing in Bengali (or any language), keep replying in that language. Do not switch to a different language (e.g. from Bengali to Hindi) mid-conversation. " +
-        "Interpret what the user means even when they make spelling mistakes, use transliteration, or write casually (e.g. 'cigarrete', 'thikachi', 'hochena'). Respond to their intent, not to the exact spelling.",
+        "Interpret what the user means even when they make spelling mistakes, use transliteration, or write casually (e.g. 'cigarrete', 'thikachi', 'hochena'). Respond to their intent, not to the exact spelling. " +
+        "When users ask for doctor or gynecologist recommendations in a city (in any language, e.g. 'kolkata te bhalo gyno'), the app may show them real options—do not say you cannot recommend or name doctors; if they have set a location or mentioned a city, they will get help from the app.",
     });
 
     // Send full conversation history so the model keeps the same language and context.

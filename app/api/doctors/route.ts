@@ -84,7 +84,10 @@ export async function POST(req: NextRequest) {
     };
 
     if (data.status && data.status !== "OK" && data.status !== "ZERO_RESULTS") {
-      console.error("Google Places status:", data.status, data.error_message);
+      console.error("[Her Chat] Google Places API status:", data.status, data.error_message);
+    }
+    if (data.status === "ZERO_RESULTS" || (data.results ?? []).length === 0) {
+      console.debug("[Her Chat] Google Places returned 0 results for query:", query);
     }
 
     const results = (data.results ?? []).slice(0, 5);

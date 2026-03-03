@@ -693,17 +693,38 @@ export default function Home() {
 
     const lower = trimmed.toLowerCase();
 
+    // Detect doctor/gyno search in any language (e.g. "gyno", "gynecologist", "daktar", "doctor").
+    const doctorIntent =
+      lower.includes("gyno") ||
+      lower.includes("gynecologist") ||
+      lower.includes("ob-gyn") ||
+      lower.includes("obgyn") ||
+      lower.includes("daktar") ||
+      lower.includes("doctor") ||
+      lower.includes("doctors") ||
+      lower.includes("local doctor") ||
+      lower.includes("doctors list") ||
+      lower.includes("doctors near") ||
+      lower.includes("list of doctors") ||
+      lower.includes("find me a doctor") ||
+      lower.includes("doctor near me");
+
+    // Common city names to extract from message (e.g. "kolkata te bhalo gyno" → use Kolkata).
+    const cityPatterns: { match: RegExp; location: string }[] = [
+      { match: /\bkolkata\b/i, location: "Kolkata, India" },
+      { match: /\bmumbai\b/i, location: "Mumbai, India" },
+      { match: /\bdelhi\b/i, location: "Delhi, India" },
+      { match: /\bchennai\b/i, location: "Chennai, India" },
+      { match: /\bbangalore\b/i, location: "Bangalore, India" },
+      { match: /\bhyderabad\b/i, location: "Hyderabad, India" },
+      { match: /\bpune\b/i, location: "Pune, India" },
+      { match: /\bahmedabad\b/i, location: "Ahmedabad, India" },
+    ];
+    const cityFromMessage = cityPatterns.find((c) => c.match.test(trimmed))?.location ?? null;
+    const loc = (cityFromMessage || userLocation.trim()) || "";
+
     // Handle request for local doctors list without calling the LLM.
-    if (
-      !imageFile &&
-      (lower.includes("local doctor") ||
-        lower.includes("doctors list") ||
-        lower.includes("doctors near") ||
-        lower.includes("list of doctors") ||
-        lower.includes("find me a doctor") ||
-        lower.includes("doctor near me"))
-    ) {
-      const loc = userLocation.trim();
+    if (!imageFile && doctorIntent) {
       const userMessage: Message = {
         id: crypto.randomUUID(),
         role: "user",
@@ -711,11 +732,12 @@ export default function Home() {
       };
 
       if (!loc) {
+        const noLocEn =
+          "I'd love to help you find someone nearby. Tap the menu button (three lines) at the very top, open Education, and add your city + country under \"Location & care options\". Once that's saved, ask me again for local doctors and I'll suggest search phrases tailored to your area.";
         const assistantMessage: Message = {
           id: crypto.randomUUID(),
           role: "assistant",
-          content:
-            "I’d love to help you find someone nearby. Tap the menu button (three lines) at the very top, open Education, and add your city + country under “Location & care options”. Once that’s saved, ask me again for local doctors and I’ll suggest search phrases tailored to your area.",
+          content: noLocEn,
         };
         setMessages((prev) => [...prev, userMessage, assistantMessage]);
         setInput("");
@@ -750,12 +772,14 @@ export default function Home() {
 
         const places = data.places ?? [];
 
+        if (process.env.NODE_ENV === "development" && places.length === 0) {
+          console.debug("[Her Chat] Doctors API returned 0 places for location:", loc);
+        }
+
         let reply: string;
         const mapQuery = `gynecologist in ${loc}`;
+        const mapsUrl = `https://www.google.com/maps/search/gynecologist+${encodeURIComponent(loc)}`;
         if (places.length === 0) {
-          const mapsUrl = `https://www.google.com/maps/search/gynecologist+${encodeURIComponent(
-            loc,
-          )}`;
           reply =
             `I couldn't pull up specific clinics right now, but you can still search near you. For ${loc}, try:\n\n` +
             `• "gynecologist near ${loc}" or "OB-GYN clinic ${loc}"\n` +
@@ -768,7 +792,6 @@ export default function Home() {
             const addr = p.address ? ` — ${p.address}` : "";
             return `• ${p.name}${addr}\n  Open in Maps: ${p.mapsUrl}`;
           });
-
           reply =
             `I can't personally vouch for anyone, but here are some options around ${loc} you can check out:\n\n` +
             lines.join("\n") +
@@ -784,19 +807,18 @@ export default function Home() {
         };
         setMessages((prev) => [...prev, assistantMessage]);
       } catch (err) {
-        console.error(err);
-        const mapsUrl = `https://www.google.com/maps/search/gynecologist+${encodeURIComponent(
-          loc,
-        )}`;
+        console.error("[Her Chat] Doctors API error:", err);
+        const mapsUrl = `https://www.google.com/maps/search/gynecologist+${encodeURIComponent(loc)}`;
+        const errReplyEn =
+          `I ran into an issue pulling clinics, but you can still search nearby. Try these searches for ${loc}:\n\n` +
+          `• "gynecologist near ${loc}" or "OB-GYN clinic ${loc}"\n` +
+          `• "sexual health clinic ${loc}"\n` +
+          `• "urgent care ${loc}" if something feels urgent\n\n` +
+          `Open in Maps: ${mapsUrl}`;
         const assistantMessage: Message = {
           id: crypto.randomUUID(),
           role: "assistant",
-          content:
-            `I ran into an issue pulling clinics, but you can still search nearby. Try these searches for ${loc}:\n\n` +
-            `• "gynecologist near ${loc}" or "OB-GYN clinic ${loc}"\n` +
-            `• "sexual health clinic ${loc}"\n` +
-            `• "urgent care ${loc}" if something feels urgent\n\n` +
-            `Open in Maps: ${mapsUrl}`,
+          content: errReplyEn,
         };
         setMessages((prev) => [...prev, assistantMessage]);
         setError(
@@ -1168,7 +1190,20 @@ export default function Home() {
                 >
                   Share chat
                 </button>
-                <span className="text-[#7a6d7a] text-[var(--text-caption)] leading-[var(--text-caption--line)]">
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.7rem] font-medium ${
+                    isLoading
+                      ? "bg-amber-50 text-amber-700 border border-amber-200/80"
+                      : "bg-emerald-50/90 text-emerald-700 border border-emerald-200/80"
+                  }`}
+                  aria-live="polite"
+                >
+                  <span
+                    className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                      isLoading ? "bg-amber-500 animate-pulse" : "bg-emerald-500"
+                    }`}
+                    aria-hidden
+                  />
                   {isLoading ? "Thinking…" : "Online"}
                 </span>
               </div>

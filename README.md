@@ -16,6 +16,7 @@ Summary of updates made since the last README update:
 
 ### Chat & layout
 - **Chat panel** — Chat area kept compact with a fixed max height (e.g. 55rem). The input/typing bar no longer grows: footer and form use `shrink-0`, and the input has a fixed height so it stays a single line.
+- **Chat header status** — “Online” / “Thinking…” shown as a small pill badge with a status dot (green when Online, amber with pulse when Thinking) so it matches the header and reads clearly.
 - **Vercel build** — Resolved TypeScript error in `app/api/chat/route.ts` for Gemini `generateContent` (contents typed as `Part` and cast for the SDK so the build passes).
 
 ### Dashboard
@@ -39,6 +40,11 @@ Summary of updates made since the last README update:
 - **Language consistency** — Full conversation history is sent to the API so the model keeps the **same language** for the whole chat (e.g. no switching from Bengali to Hindi mid-conversation).
 - **Spelling and transliteration** — The model is instructed to interpret the user’s intent despite typos, casual spelling, and transliteration (e.g. "cigarrete", "thikachi", "hochena").
 - **In-app hint** — A hero badge and a line above the chat input say “Chat in any language—I’ll reply in yours” so users know they can type in any language.
+
+### Doctor search
+- **Any-language detection** — Doctor intent is detected from keywords in any language (e.g. “gyno”, “gynecologist”, “daktar”, “doctor”). Users can ask for doctors in Bengali, Hindi, Korean, English, etc., and the app still runs the doctor flow.
+- **City from message** — If the user mentions a city (e.g. Kolkata, Delhi, Mumbai, Bangalore, Chennai, Hyderabad, Pune, Ahmedabad), that city is used for the search even if they haven’t set a location in the menu.
+- **Replies always in English** — The doctors list, “no clinics” fallback, “no location” prompt, and error message are always shown in **English** so clinic names and search tips are consistent for everyone.
 
 ### Footer & feedback
 - **Footer** — Site footer (SiteShell) includes “© 2026. All rights reserved.”
@@ -80,7 +86,7 @@ Summary of updates made since the last README update:
 
 ### Care & location
 
-- **Doctor search** — In chat, ask for “doctors near me” or “gynecologist near [city]”; with location set, you get real clinic names, addresses, and “Open in Maps” links (Google Places API).
+- **Doctor search** — Ask in chat in any language (e.g. “doctors near me”, “kolkata te bhalo gyno”, “delhi me ache doctors”); the app detects doctor intent and, if you’ve set a location or mentioned a city, returns real clinic names, addresses, and “Open in Maps” links (Google Places API). All doctor-flow replies (list, search tips, no-location prompt) are in English.
 - **Optional location** — Set city/country in the top menu; used for doctor suggestions and tailored education examples.
 - **Education** — In-app guides on location & care, finding doctors, period basics, discharge, pregnancy, UTIs, and STIs/safer sex.
 
@@ -95,6 +101,7 @@ Summary of updates made since the last README update:
 
 - **Responsive** — Works on mobile, tablet, and desktop; horizontal scroll for journal/period buttons on small screens.
 - **Soft, accessible design** — Pink–lavender–blue gradients, readable typography (Plus Jakarta Sans), and clear focus states.
+- **Chat header** — “Her Chat” title with gradient dot; History, New chat, Share chat (on larger screens); status pill showing “Online” (green dot) or “Thinking…” (amber, pulsing).
 - **Favicon** — Custom Her Chat bow logo as the site favicon.
 
 ---
