@@ -12,8 +12,9 @@ Summary of updates made since the last README update:
 
 ### Share
 - **Share icon for current chat** — Share is now an icon (share/nodes icon) beside the image uploader in the chat input area, not a header button. Tapping it opens a share preview for the current conversation.
+- **Share icon everywhere** — A single `ShareIcon` component (share/nodes SVG) is used for the current-chat share button, each saved chat’s share button in History, and the Share button in the preview modal so the icon is consistent across the app.
 - **Share preview card** — After clicking share (current chat or a saved chat in History), a modal shows a card-style preview: title (“Current conversation” or the saved chat title), date/time, and up to four message bubbles. Actions: **Cancel**, **Copy to clipboard**, and **Share**. Share uses the native share sheet when available (e.g. mobile); otherwise it copies to clipboard and closes the modal.
-- **Share for each saved chat** — In History, each saved chat has a share button (↗) that opens the same preview card for that chat only.
+- **Share for each saved chat** — In History, each saved chat has a share icon button that opens the same preview card for that chat only.
 
 ### Language & doctor list
 - **Auto-switch language** — The bot matches the language of the user’s **current** (latest) message. If the user switches language mid-conversation (e.g. Bengali → Hindi), the bot switches with them and replies in the new language.
@@ -35,6 +36,9 @@ Summary of updates made since the last README update:
 
 ### Small screens
 - **Narrow layout** — On viewports &lt; 640px, placeholders shorten to “Search” or “Ask anything…”, the Search button is icon-only, and spacing is tightened so the typing bar stays usable.
+- **Send button on mobile** — The chat form uses `min-w-0` on the text input and `w-full min-w-0` on the form so the input shrinks on small screens and the Send button stays inside the row instead of overflowing.
+- **Search: back to chat on mobile** — When search is active, a sticky “Back to chat” bar appears at the top of the messages area (with a left-arrow) so users can exit search easily on mobile. The search toggle in the footer also shows “Close” when search is on, including on small screens.
+- **Period today on mobile** — The “Period today:” label above the light/medium/heavy/spotting buttons is now visible on all screen sizes (no longer hidden on mobile).
 - **Education** — Accessible from the dashboard via the “Education” button and from the hamburger menu; both use a shared `goToEducation()` handler that closes dashboard, history, and search and opens Education.
 
 ### Mobile scroll (Education & Dashboard)
@@ -46,6 +50,7 @@ Summary of updates made since the last README update:
 
 ### Multilingual chat
 - **Reply in user's language** — If the user writes in a language other than English, the chatbot replies in that language (using the script or transliteration they use).
+- **Romanized in, romanized out** — If the user writes in romanized form (Latin letters only, e.g. “tumi kemon acho”, “aap kaise ho”), the bot replies in that same language in **romanized form** (Latin letters), not in the native script (e.g. not in Bengali or Devanagari). If the user uses the native script, the bot replies in that script.
 - **Auto-switch with user** — The bot matches the language of the user’s **current** message. If they switch language mid-conversation (e.g. Bengali → Hindi), the bot switches with them. Full conversation history is sent so the model can detect the switch.
 - **Spelling and transliteration** — The model is instructed to interpret the user’s intent despite typos, casual spelling, and transliteration (e.g. "cigarrete", "thikachi", "hochena").
 - **In-app hint** — A hero badge and a line above the chat input say “Chat in any language—I’ll reply in yours” so users know they can type in any language.
@@ -59,8 +64,13 @@ Summary of updates made since the last README update:
 - **Footer** — Site footer (SiteShell) includes “© 2026. All rights reserved.”
 - **Give feedback** — Optional “Give feedback” link in the hamburger menu; when `NEXT_PUBLIC_FEEDBACK_FORM_URL` is set (e.g. to a Google Form), it opens the form in a new tab. See “Feedback with Google Forms” below for setup.
 
+### Hero cards & menu
+- **Clickable hero cards** — The three cards (“Periods & cycles”, “PCOS & pregnancy”, “Private & safe”) are buttons. Tapping one closes menu/education/history/dashboard/search, scrolls to the chat section, and adds a bot message that prompts the user about that topic (e.g. “What would you like to know about periods or your cycle?”).
+- **Hamburger closes on outside tap** — When the menu is open, a full-screen transparent overlay is shown; tapping anywhere outside the menu (on the overlay) closes it. The menu and hamburger sit above the overlay (z-index) so they remain clickable.
+
 ### Other
 - **Favicon** — Site favicon set to `herchatlogo.png` in `app/layout.tsx` (icon + shortcut).
+- **About page** — The paragraph about chats and logs staying on the device (local storage) is styled in pink (`text-[#be185d]`).
 - **Env & Git** — `.env.local` remains gitignored; no env keys are committed. First commit/push and Vercel deploy (e.g. push to `main`) and fixing commit author email for Vercel checks were addressed in setup.
 
 ---
@@ -81,7 +91,7 @@ Summary of updates made since the last README update:
 ### Chat
 
 - **AI-powered Q&A** — Ask anything about periods, PCOS, pregnancy, sexual health; responses are supportive and non-judgmental.
-- **Multilingual** — Chat in any language; the bot replies in yours and switches with you if you change language mid-chat. Tolerates spelling and transliteration (e.g. Bengali in Latin script).
+- **Multilingual** — Chat in any language; the bot replies in yours and switches with you if you change language mid-chat. If you type in romanized form (Latin letters), replies stay in romanized form. Tolerates spelling and transliteration (e.g. Bengali in Latin script).
 - **Image support** — Attach an image and ask the chatbot about it (e.g. for visual questions).
 - **Chat history** — Save conversations as “New chat”; reopen or delete saved chats from the History panel.
 - **Share chat** — Share icon beside the image uploader opens a card-style preview of the current chat with Copy and Share (native share or copy). Each saved chat in History has a share button for that chat’s preview.

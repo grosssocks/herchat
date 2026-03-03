@@ -1054,6 +1054,15 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#f8f4f8] text-[#2d2430]">
+      {/* Close menu when tapping outside */}
+      {showMenu && (
+        <button
+          type="button"
+          className="fixed inset-0 z-10 cursor-default bg-transparent"
+          onClick={() => setShowMenu(false)}
+          aria-label="Close menu"
+        />
+      )}
       {/* Soft gradient orbs in the background */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute -left-40 top-1/4 h-80 w-80 rounded-full bg-[#fce7ef]/70 blur-3xl" />
@@ -1061,7 +1070,7 @@ export default function Home() {
         <div className="absolute bottom-0 left-1/2 h-72 w-[32rem] -translate-x-1/2 rounded-full bg-[#fdf2f8]/50 blur-3xl" />
       </div>
 
-      <div className="relative mx-auto flex max-w-6xl items-center justify-end px-6 pt-6 lg:pt-8">
+      <div className="relative z-20 mx-auto flex max-w-6xl items-center justify-end px-6 pt-6 lg:pt-8">
         <div className="relative">
           <button
             type="button"
@@ -1208,7 +1217,30 @@ export default function Home() {
             Chat in any language—I’ll reply in yours.
           </p>
           <div className="grid gap-4 sm:grid-cols-3">
-            <div className="rounded-2xl bg-gradient-to-br from-[#fdf2f8] to-[#fce7f3]/80 p-4 shadow-[0_4px_16px_rgba(249,168,212,0.15)] backdrop-blur-sm ring-1 ring-pink-200/60 break-words">
+            <button
+              type="button"
+              onClick={() => {
+                setShowMenu(false);
+                setShowEducation(false);
+                setShowHistory(false);
+                setShowDashboard(false);
+                setShowSearch(false);
+                setSearchQuery("");
+                setMessages((prev) => [
+                  ...prev,
+                  {
+                    id: crypto.randomUUID(),
+                    role: "assistant",
+                    content:
+                      "What would you like to know about periods or your cycle? You can ask about symptoms, tracking, or what’s normal.",
+                  },
+                ]);
+                scrollChatSectionIntoView();
+                setTimeout(() => scrollChatSectionIntoView(), 100);
+              }}
+              className="w-full rounded-2xl bg-gradient-to-br from-[#fdf2f8] to-[#fce7f3]/80 p-4 text-left shadow-[0_4px_16px_rgba(249,168,212,0.15)] backdrop-blur-sm ring-1 ring-pink-200/60 break-words transition hover:shadow-[0_6px_20px_rgba(249,168,212,0.22)] hover:ring-pink-300/70 focus:outline-none focus:ring-2 focus:ring-[#c4b5fd] focus:ring-offset-2"
+              aria-label="Start a chat about periods and cycles"
+            >
               <span className="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white/80 text-lg shadow-sm" aria-hidden>🌸</span>
               <p className="font-semibold text-[#2d2430] text-[var(--text-small)] leading-[var(--text-small--line)]">
                 Periods & cycles
@@ -1216,8 +1248,31 @@ export default function Home() {
               <p className="mt-1.5 text-[#7a6d7a] text-[var(--text-caption)] leading-[var(--text-caption--line)]">
                 Track, understand, and get support.
               </p>
-            </div>
-            <div className="rounded-2xl bg-gradient-to-br from-[#f5f3ff] to-[#ede9fe]/80 p-4 shadow-[0_4px_16px_rgba(196,181,253,0.18)] backdrop-blur-sm ring-1 ring-violet-200/60 break-words">
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowMenu(false);
+                setShowEducation(false);
+                setShowHistory(false);
+                setShowDashboard(false);
+                setShowSearch(false);
+                setSearchQuery("");
+                setMessages((prev) => [
+                  ...prev,
+                  {
+                    id: crypto.randomUUID(),
+                    role: "assistant",
+                    content:
+                      "What’s on your mind about PCOS or pregnancy? I can share info and reassurance—no judgment.",
+                  },
+                ]);
+                scrollChatSectionIntoView();
+                setTimeout(() => scrollChatSectionIntoView(), 100);
+              }}
+              className="w-full rounded-2xl bg-gradient-to-br from-[#f5f3ff] to-[#ede9fe]/80 p-4 text-left shadow-[0_4px_16px_rgba(196,181,253,0.18)] backdrop-blur-sm ring-1 ring-violet-200/60 break-words transition hover:shadow-[0_6px_20px_rgba(196,181,253,0.25)] hover:ring-violet-300/70 focus:outline-none focus:ring-2 focus:ring-[#c4b5fd] focus:ring-offset-2"
+              aria-label="Start a chat about PCOS and pregnancy"
+            >
               <span className="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white/80 text-lg shadow-sm" aria-hidden>💜</span>
               <p className="font-semibold text-[#2d2430] text-[var(--text-small)] leading-[var(--text-small--line)]">
                 PCOS & pregnancy
@@ -1225,8 +1280,31 @@ export default function Home() {
               <p className="mt-1.5 text-[#7a6d7a] text-[var(--text-caption)] leading-[var(--text-caption--line)]">
                 Info and reassurance when you need it.
               </p>
-            </div>
-            <div className="rounded-2xl bg-gradient-to-br from-[#fce7f3] to-[#fbcfe8]/80 p-4 shadow-[0_4px_16px_rgba(244,114,182,0.12)] backdrop-blur-sm ring-1 ring-pink-200/50 break-words">
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowMenu(false);
+                setShowEducation(false);
+                setShowHistory(false);
+                setShowDashboard(false);
+                setShowSearch(false);
+                setSearchQuery("");
+                setMessages((prev) => [
+                  ...prev,
+                  {
+                    id: crypto.randomUUID(),
+                    role: "assistant",
+                    content:
+                      "Your chats stay private on your device—no account, no database. What would you like to ask?",
+                  },
+                ]);
+                scrollChatSectionIntoView();
+                setTimeout(() => scrollChatSectionIntoView(), 100);
+              }}
+              className="w-full rounded-2xl bg-gradient-to-br from-[#fce7f3] to-[#fbcfe8]/80 p-4 text-left shadow-[0_4px_16px_rgba(244,114,182,0.12)] backdrop-blur-sm ring-1 ring-pink-200/50 break-words transition hover:shadow-[0_6px_20px_rgba(244,114,182,0.2)] hover:ring-pink-300/60 focus:outline-none focus:ring-2 focus:ring-[#c4b5fd] focus:ring-offset-2"
+              aria-label="Start a chat—your data stays private"
+            >
               <span className="mb-2 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white/80 text-lg shadow-sm" aria-hidden>💕</span>
               <p className="font-semibold text-[#2d2430] text-[var(--text-small)] leading-[var(--text-small--line)]">
                 Private & safe
@@ -1234,7 +1312,7 @@ export default function Home() {
               <p className="mt-1.5 text-[#7a6d7a] text-[var(--text-caption)] leading-[var(--text-caption--line)]">
                 Your chats stay between you and the bot.
               </p>
-            </div>
+            </button>
           </div>
           <p className="text-[0.75rem] text-[#7a6d7a] leading-snug">
             Not medical advice. Always see a healthcare provider for diagnosis and treatment.
@@ -1366,7 +1444,7 @@ export default function Home() {
                 </button>
                 <span className="hidden shrink-0 text-[#d4d4d8] sm:inline">|</span>
                 <div className="flex items-center gap-1 shrink-0">
-                  <span className="hidden text-[0.7rem] text-[#9a8d98] sm:inline">
+                  <span className="shrink-0 text-[0.7rem] text-[#9a8d98]">
                     Period today:
                   </span>
                   {(["light", "medium", "heavy", "spotting"] as const).map((flow) => (
@@ -1410,6 +1488,24 @@ export default function Home() {
               ref={listRef}
               className="flex-1 space-y-4 overflow-y-auto px-5 py-4"
             >
+              {showSearch && !showEducation && !showHistory && !showDashboard && (
+                <div className="sticky top-0 z-10 -mx-5 -mt-4 mb-2 flex items-center gap-2 border-b border-pink-100/80 bg-gradient-to-r from-[#fdf2f8]/98 to-[#faf5ff]/98 px-5 py-2.5 backdrop-blur-sm">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowSearch(false);
+                      setSearchQuery("");
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-xl px-2 py-1.5 text-[0.8125rem] font-medium text-[#6d28d9] hover:bg-[#f5f3ff] sm:px-3"
+                    aria-label="Back to chat"
+                  >
+                    <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Back to chat
+                  </button>
+                </div>
+              )}
               {showSearch && query && !showEducation && !showHistory && !showDashboard && (
                 <div className="space-y-2 rounded-2xl border border-[#efe8f2] bg-white/80 px-3 py-2 text-[0.8rem] text-[#5c4d5a]">
                   <p className="text-[0.75rem] font-medium text-[#4b3b5a]">
@@ -2152,7 +2248,7 @@ export default function Home() {
                   }
                   handleSend(e);
                 }}
-                className="flex min-h-0 shrink-0 items-center gap-2 sm:gap-3"
+                className="flex min-h-0 w-full min-w-0 shrink-0 items-center gap-2 sm:gap-3"
               >
                 <input
                   ref={fileInputRef}
@@ -2202,7 +2298,7 @@ export default function Home() {
                         : inputPrompts[placeholderIndex]
                   }
                   autoComplete={showSearch ? "off" : undefined}
-                  className="h-10 min-h-10 max-h-10 min-w-[7rem] flex-1 rounded-2xl border border-[#e9e0f0] bg-white px-3 sm:px-4 py-2 text-[#2d2430] outline-none placeholder:text-[#5c4d5a] focus:border-[#a78bfa] focus:ring-2 focus:ring-[#c4b5fd]/40 text-[var(--text-small)] leading-[var(--text-small--line)]"
+                  className="h-10 min-h-10 max-h-10 min-w-0 flex-1 rounded-2xl border border-[#e9e0f0] bg-white px-3 sm:px-4 py-2 text-[#2d2430] outline-none placeholder:text-[#5c4d5a] focus:border-[#a78bfa] focus:ring-2 focus:ring-[#c4b5fd]/40 text-[var(--text-small)] leading-[var(--text-small--line)]"
                 />
                 <button
                   type="button"
@@ -2221,7 +2317,7 @@ export default function Home() {
                   <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
-                  <span className="hidden text-[var(--text-caption)] sm:inline">{showSearch ? "Close" : "Search"}</span>
+                  <span className={`text-[var(--text-caption)] ${showSearch ? "inline" : "hidden sm:inline"}`}>{showSearch ? "Close" : "Search"}</span>
                 </button>
                 {!showSearch && (
                   <button
