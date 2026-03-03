@@ -696,7 +696,9 @@ export default function Home() {
     // Detect doctor/gyno search in any language (e.g. "gyno", "gynecologist", "daktar", "doctor").
     const doctorIntent =
       lower.includes("gyno") ||
+      lower.includes("gynae") ||
       lower.includes("gynecologist") ||
+      lower.includes("gynaecologist") ||
       lower.includes("ob-gyn") ||
       lower.includes("obgyn") ||
       lower.includes("daktar") ||
@@ -771,22 +773,26 @@ export default function Home() {
         };
 
         const places = data.places ?? [];
+        const apiError = data.error;
 
         if (process.env.NODE_ENV === "development" && places.length === 0) {
-          console.debug("[Her Chat] Doctors API returned 0 places for location:", loc);
+          console.debug("[Her Chat] Doctors API returned 0 places for location:", loc, apiError ?? "");
         }
 
         let reply: string;
         const mapQuery = `gynecologist in ${loc}`;
         const mapsUrl = `https://www.google.com/maps/search/gynecologist+${encodeURIComponent(loc)}`;
         if (places.length === 0) {
-          reply =
-            `I couldn't pull up specific clinics right now, but you can still search near you. For ${loc}, try:\n\n` +
+          const fallbackLine =
+            `For ${loc}, you can still search:\n\n` +
             `• "gynecologist near ${loc}" or "OB-GYN clinic ${loc}"\n` +
             `• "sexual health clinic ${loc}"\n` +
             `• "urgent care ${loc}" if something feels urgent\n\n` +
             `Open in Maps: ${mapsUrl}\n\n` +
             `Always double-check reviews and your insurance/coverage before you book.`;
+          reply = apiError
+            ? `I couldn't load clinic results. Google returned: ${apiError}\n\nIf you're setting this app up: enable Places API in Google Cloud, turn on billing, and ensure your API key has no application restriction blocking server requests (or allow your server IP).\n\n${fallbackLine}`
+            : `I couldn't pull up specific clinics right now, but you can still search near you.\n\n${fallbackLine}`;
         } else {
           const lines = places.slice(0, 3).map((p) => {
             const addr = p.address ? ` — ${p.address}` : "";
