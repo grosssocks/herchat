@@ -21,6 +21,9 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
               Support me
             </a>
           </p>
+          <p className="mt-1 text-[0.7rem] text-[#9a8d98]">
+            © 2026. All rights reserved.
+          </p>
         </footer>
       )}
     </div>

@@ -72,27 +72,34 @@ export async function POST(req: NextRequest) {
         "For UTIs and STIs, gently explain symptoms, how they spread, and practical prevention (hydration, peeing after sex, barrier protection, regular testing, safer-sex habits) without shaming. " +
         "Give real, practical advice when you can: things that often help (heat, rest, tracking your cycle, diet tweaks, talking to someone), what other women do, what's worth trying at home, and what to bring up with a provider. Don't just say 'see a doctor' for everything. " +
         "Only suggest seeing a doctor when it's actually needed: worrying or unusual symptoms, need for diagnosis or treatment, or when they're asking something only a provider can answer. When you do, say it like a friend would—e.g. 'that's one of those things worth getting checked' or 'if it keeps up def see someone.' " +
-        "Never diagnose or prescribe. Stay accurate, sex-positive, and kind.",
+        "Never diagnose or prescribe. Stay accurate, sex-positive, and kind. " +
+        "If the user writes in a language other than English, reply in that same language so they can read it comfortably. You may use Latin/English letters (e.g. transliteration) if that's how they wrote or if it's standard for that language; otherwise use the script they used. " +
+        "Important: Keep the same language for the whole conversation. If the user has been writing in Bengali (or any language), keep replying in that language. Do not switch to a different language (e.g. from Bengali to Hindi) mid-conversation. " +
+        "Interpret what the user means even when they make spelling mistakes, use transliteration, or write casually (e.g. 'cigarrete', 'thikachi', 'hochena'). Respond to their intent, not to the exact spelling.",
     });
 
-    // For reliability, send only the latest user turn (plus optional image)
-    // as a single-user request rather than a full multi-turn history. This
-    // guarantees the first content is always from the user.
+    // Send full conversation history so the model keeps the same language and context.
     type Part = { text: string } | { inlineData: { mimeType: string; data: string } };
-    const contents: Array<{ role: "user"; parts: Part[] }> =
+    type ContentTurn = { role: "user" | "model"; parts: Part[] };
+
+    const contents: ContentTurn[] = [];
+    const historyMessages = messages.slice(0, -1);
+    for (const m of historyMessages) {
+      contents.push({
+        role: m.role === "user" ? "user" : "model",
+        parts: [{ text: m.content?.trim() || "(empty)" }],
+      });
+    }
+
+    const lastUserParts: Part[] =
       rawBase64 && imageMimeType
         ? [
-            {
-              role: "user",
-              parts: [
-                { inlineData: { mimeType: imageMimeType, data: rawBase64 } },
-                { text: textContent },
-              ],
-            },
+            { inlineData: { mimeType: imageMimeType, data: rawBase64 } },
+            { text: textContent },
           ]
-        : [{ role: "user", parts: [{ text: textContent }] }];
+        : [{ text: textContent }];
+    contents.push({ role: "user", parts: lastUserParts });
 
-    // SDK Part type is a union that includes CodeExecutionResultPart; our parts are valid at runtime
     const result = await model.generateContent({ contents: contents as never });
 
     const reply =

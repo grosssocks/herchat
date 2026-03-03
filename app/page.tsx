@@ -1042,6 +1042,20 @@ export default function Home() {
                 </span>
                 <span>Support this project</span>
               </a>
+              {process.env.NEXT_PUBLIC_FEEDBACK_FORM_URL && (
+                <a
+                  href={process.env.NEXT_PUBLIC_FEEDBACK_FORM_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setShowMenu(false)}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-[#7a6d7a] hover:bg-[#f5f3ff]"
+                >
+                  <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-[#c4b5fd]/40 text-[0.65rem]">
+                    💬
+                  </span>
+                  <span>Give feedback</span>
+                </a>
+              )}
             </div>
           )}
         </div>
@@ -1069,6 +1083,10 @@ export default function Home() {
           </h1>
           <p className="max-w-lg text-balance text-[#5c4d5a] text-[var(--text-body-lg)] leading-[var(--text-body-lg--line)] break-words">
             Ask questions in plain language. Private, judgment-free, and here to help—not replace—your doctor.
+          </p>
+          <p className="inline-flex items-center gap-1.5 rounded-full border border-[#c4b5fd]/50 bg-[#f5f3ff]/80 px-3 py-1.5 text-[0.75rem] font-medium text-[#5b21b6] w-fit">
+            <span aria-hidden>🌐</span>
+            Chat in any language—I’ll reply in yours.
           </p>
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="rounded-2xl bg-gradient-to-br from-[#fdf2f8] to-[#fce7f3]/80 p-4 shadow-[0_4px_16px_rgba(249,168,212,0.15)] backdrop-blur-sm ring-1 ring-pink-200/60 break-words">
@@ -1983,6 +2001,11 @@ export default function Home() {
                     Remove
                   </button>
                 </div>
+              )}
+              {!showSearch && (
+                <p className="mb-2 text-[0.7rem] text-[#9a8d98] leading-snug">
+                  🌐 Type in any language—I’ll reply in yours.
+                </p>
               )}
               <form
                 onSubmit={(e) => {

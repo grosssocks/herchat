@@ -34,6 +34,16 @@ Summary of updates made since the last README update:
   3. Scrolls the **Education or dashboard panel** into view with `scrollIntoView({ behavior: 'auto' })` after short delays (50 ms and 300 ms) so layout has time to settle on mobile.
 - **Implementation** — Shared helper `scrollChatSectionIntoView()`; refs `educationPanelRef`, `dashboardPanelRef`, and `chatSectionRef`. Scroll runs only in `useEffect` when `showEducation` or `showDashboard` becomes true (no ref-callback scroll), so opening the hamburger menu while Education or Dashboard is open does not trigger an unwanted scroll to the chatbox. All scroll behavior uses `behavior: 'auto'` for consistency on mobile.
 
+### Multilingual chat
+- **Reply in user's language** — If the user writes in a language other than English, the chatbot replies in that language (using the script or transliteration they use).
+- **Language consistency** — Full conversation history is sent to the API so the model keeps the **same language** for the whole chat (e.g. no switching from Bengali to Hindi mid-conversation).
+- **Spelling and transliteration** — The model is instructed to interpret the user’s intent despite typos, casual spelling, and transliteration (e.g. "cigarrete", "thikachi", "hochena").
+- **In-app hint** — A hero badge and a line above the chat input say “Chat in any language—I’ll reply in yours” so users know they can type in any language.
+
+### Footer & feedback
+- **Footer** — Site footer (SiteShell) includes “© 2026. All rights reserved.”
+- **Give feedback** — Optional “Give feedback” link in the hamburger menu; when `NEXT_PUBLIC_FEEDBACK_FORM_URL` is set (e.g. to a Google Form), it opens the form in a new tab. See “Feedback with Google Forms” below for setup.
+
 ### Other
 - **Favicon** — Site favicon set to `herchatlogo.png` in `app/layout.tsx` (icon + shortcut).
 - **Env & Git** — `.env.local` remains gitignored; no env keys are committed. First commit/push and Vercel deploy (e.g. push to `main`) and fixing commit author email for Vercel checks were addressed in setup.
@@ -56,6 +66,7 @@ Summary of updates made since the last README update:
 ### Chat
 
 - **AI-powered Q&A** — Ask anything about periods, PCOS, pregnancy, sexual health; responses are supportive and non-judgmental.
+- **Multilingual** — Chat in any language; the bot replies in yours and keeps the same language for the whole conversation. Tolerates spelling and transliteration (e.g. Bengali in Latin script).
 - **Image support** — Attach an image and ask the chatbot about it (e.g. for visual questions).
 - **Chat history** — Save conversations as “New chat”; reopen or delete saved chats from the History panel.
 - **Share chat** — Share the current conversation as text (Web Share API or copy to clipboard).
@@ -78,6 +89,7 @@ Summary of updates made since the last README update:
 - **About** — Why Her Chat exists, tech stack, and when data is erased. Link from the menu.
 - **About the developer** — Short intro and links to LinkedIn, GitHub, website, and email.
 - **Support** — Optional support via UPI (e.g. Google Pay) for users in India; QR code and “Back to Her Chat” link.
+- **Give feedback** — Optional link in the menu that opens a Google Form (when `NEXT_PUBLIC_FEEDBACK_FORM_URL` is set) so users can submit feedback without a backend.
 
 ### UI/UX
 
@@ -134,6 +146,7 @@ Create `.env.local` in the project root (this file is gitignored; do not commit 
 | `GEMINI_API_KEY` | Yes (for chat) | Google AI Studio API key for Gemini (chat + image). |
 | `GOOGLE_PLACES_API_KEY` | Yes (for doctor search) | Google Cloud API key with Places API enabled. |
 | `NEXT_PUBLIC_GOOGLE_MAPS_EMBED_KEY` | No | If set, doctor replies include an embedded map iframe. |
+| `NEXT_PUBLIC_FEEDBACK_FORM_URL` | No | Full URL of your Google Form for user feedback. If set, "Give feedback" appears in the hamburger menu and opens this form in a new tab. |
 
 Example:
 
@@ -141,7 +154,30 @@ Example:
 GEMINI_API_KEY=your_gemini_key
 GOOGLE_PLACES_API_KEY=your_places_key
 NEXT_PUBLIC_GOOGLE_MAPS_EMBED_KEY=your_maps_embed_key
+NEXT_PUBLIC_FEEDBACK_FORM_URL=https://docs.google.com/forms/d/e/YOUR_FORM_ID/viewform
 ```
+
+### Feedback with Google Forms (optional)
+
+To collect user feedback without a database:
+
+1. **Create a Google Form**
+   - Go to [Google Forms](https://forms.google.com) and sign in.
+   - Click **Blank** (or a template).
+   - Add a title, e.g. "Her Chat – Feedback".
+   - Add questions, e.g.:
+     - Short answer: "What did you like or find helpful?"
+     - Short answer: "What could be better?"
+     - (Optional) Short answer: "Email if you're okay with a follow-up" or leave anonymous.
+   - Click **Send** → link icon → copy the form URL (looks like `https://docs.google.com/forms/d/e/.../viewform`).
+
+2. **Add the URL to your app**
+   - In the project root, open `.env.local`.
+   - Add: `NEXT_PUBLIC_FEEDBACK_FORM_URL=https://docs.google.com/forms/d/e/YOUR_FORM_ID/viewform` (paste your copied URL).
+   - Restart the dev server (`npm run dev`). For production (e.g. Vercel), add the same variable in the project settings.
+
+3. **Use it**
+   - The hamburger menu will show **Give feedback**. Clicking it opens your form in a new tab. Responses appear in Google Forms (and the linked Sheet, if you added one).
 
 ### Build for production
 
