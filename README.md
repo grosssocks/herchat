@@ -10,6 +10,15 @@ A supportive, private space to ask questions about **periods, PCOS, pregnancy**,
 
 Summary of updates made since the last README update:
 
+### Share
+- **Share icon for current chat** — Share is now an icon (share/nodes icon) beside the image uploader in the chat input area, not a header button. Tapping it opens a share preview for the current conversation.
+- **Share preview card** — After clicking share (current chat or a saved chat in History), a modal shows a card-style preview: title (“Current conversation” or the saved chat title), date/time, and up to four message bubbles. Actions: **Cancel**, **Copy to clipboard**, and **Share**. Share uses the native share sheet when available (e.g. mobile); otherwise it copies to clipboard and closes the modal.
+- **Share for each saved chat** — In History, each saved chat has a share button (↗) that opens the same preview card for that chat only.
+
+### Language & doctor list
+- **Auto-switch language** — The bot matches the language of the user’s **current** (latest) message. If the user switches language mid-conversation (e.g. Bengali → Hindi), the bot switches with them and replies in the new language.
+- **Doctor list always in English** — The doctors list reply (intro, clinic names/addresses, conclusion) is always shown in English, regardless of the language the user asked in. Doctor intent keywords now include “gynae” and “gynaecologist” (e.g. “delhi me konse gynae ache he” triggers the doctor flow and the English list).
+
 ### Search & navigation
 - **Unified search** — One search box filters the current chat, saved chats (History), and journal entries. A “Search matches” summary shows counts for this chat, saved chats, and journal; History → Chats and Journal respect the active query. Placeholder/button text: “Search everything”.
 - **About the developer** — Hamburger menu includes “About the Developer” (links to `/about#developer`). The About page has a dedicated developer section with a short bio and icon links (LinkedIn, GitHub, website, email).
@@ -37,14 +46,14 @@ Summary of updates made since the last README update:
 
 ### Multilingual chat
 - **Reply in user's language** — If the user writes in a language other than English, the chatbot replies in that language (using the script or transliteration they use).
-- **Language consistency** — Full conversation history is sent to the API so the model keeps the **same language** for the whole chat (e.g. no switching from Bengali to Hindi mid-conversation).
+- **Auto-switch with user** — The bot matches the language of the user’s **current** message. If they switch language mid-conversation (e.g. Bengali → Hindi), the bot switches with them. Full conversation history is sent so the model can detect the switch.
 - **Spelling and transliteration** — The model is instructed to interpret the user’s intent despite typos, casual spelling, and transliteration (e.g. "cigarrete", "thikachi", "hochena").
 - **In-app hint** — A hero badge and a line above the chat input say “Chat in any language—I’ll reply in yours” so users know they can type in any language.
 
 ### Doctor search
-- **Any-language detection** — Doctor intent is detected from keywords in any language (e.g. “gyno”, “gynecologist”, “daktar”, “doctor”). Users can ask for doctors in Bengali, Hindi, Korean, English, etc., and the app still runs the doctor flow.
+- **Any-language detection** — Doctor intent is detected from keywords in any language (e.g. “gyno”, “gynae”, “gynecologist”, “gynaecologist”, “daktar”, “doctor”). Users can ask for doctors in Bengali, Hindi, Korean, English, etc., and the app still runs the doctor flow.
 - **City from message** — If the user mentions a city (e.g. Kolkata, Delhi, Mumbai, Bangalore, Chennai, Hyderabad, Pune, Ahmedabad), that city is used for the search even if they haven’t set a location in the menu.
-- **Replies always in English** — The doctors list, “no clinics” fallback, “no location” prompt, and error message are always shown in **English** so clinic names and search tips are consistent for everyone.
+- **Replies always in English** — The doctors list (intro, clinic names/addresses, conclusion), “no clinics” fallback, “no location” prompt, and error message are always shown in **English** so clinic names and search tips are consistent for everyone.
 
 ### Footer & feedback
 - **Footer** — Site footer (SiteShell) includes “© 2026. All rights reserved.”
@@ -72,10 +81,10 @@ Summary of updates made since the last README update:
 ### Chat
 
 - **AI-powered Q&A** — Ask anything about periods, PCOS, pregnancy, sexual health; responses are supportive and non-judgmental.
-- **Multilingual** — Chat in any language; the bot replies in yours and keeps the same language for the whole conversation. Tolerates spelling and transliteration (e.g. Bengali in Latin script).
+- **Multilingual** — Chat in any language; the bot replies in yours and switches with you if you change language mid-chat. Tolerates spelling and transliteration (e.g. Bengali in Latin script).
 - **Image support** — Attach an image and ask the chatbot about it (e.g. for visual questions).
 - **Chat history** — Save conversations as “New chat”; reopen or delete saved chats from the History panel.
-- **Share chat** — Share the current conversation as text (Web Share API or copy to clipboard).
+- **Share chat** — Share icon beside the image uploader opens a card-style preview of the current chat with Copy and Share (native share or copy). Each saved chat in History has a share button for that chat’s preview.
 - **Search** — Search across the current chat, saved chats, and journal entries from one search bar.
 
 ### Period & journal
@@ -101,7 +110,7 @@ Summary of updates made since the last README update:
 
 - **Responsive** — Works on mobile, tablet, and desktop; horizontal scroll for journal/period buttons on small screens.
 - **Soft, accessible design** — Pink–lavender–blue gradients, readable typography (Plus Jakarta Sans), and clear focus states.
-- **Chat header** — “Her Chat” title with gradient dot; History, New chat, Share chat (on larger screens); status pill showing “Online” (green dot) or “Thinking…” (amber, pulsing).
+- **Chat header** — “Her Chat” title with gradient dot; History and New chat (on larger screens); status pill showing “Online” (green dot) or “Thinking…” (amber, pulsing). Share is an icon next to the image uploader in the input area and opens a preview card with Copy / Share.
 - **Favicon** — Custom Her Chat bow logo as the site favicon.
 
 ---

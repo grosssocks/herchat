@@ -102,7 +102,7 @@ export default function AboutPage() {
           </div>
         </div>
       </section>
-      <p className="mt-2 text-[0.8rem] text-[#9a8d98]">
+      <p className="mt-2 text-[0.8rem] text-[#be185d]">
         Your chats and logs stay on your device in your browser&apos;s local storage—there&apos;s no
         separate account or database for your personal data. This data will disappear if you clear
         your browser data for this site, use a private/incognito window and close it, or switch to a

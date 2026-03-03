@@ -12,6 +12,8 @@ type Message = {
   mapQuery?: string;
   places?: Place[];
   placesLocation?: string;
+  /** Language for doctor-flow intro/conclusion so framing matches user's message (e.g. Hindi query → Hindi framing). */
+  framingLang?: "en" | "bn" | "hi";
 };
 
 type SavedChat = {
@@ -42,6 +44,62 @@ type PeriodEntry = {
   flow: PeriodFlow;
 };
 
+/** Detect likely language from user message so doctor-flow intro/conclusion match (Bengali / Hindi / English). */
+function detectFramingLang(text: string): "en" | "bn" | "hi" {
+  if (!text.trim()) return "en";
+  if (/[\u0980-\u09FF]/.test(text)) return "bn";
+  if (/[\u0900-\u097F]/.test(text)) return "hi";
+  const t = text.toLowerCase();
+  const hindiMarkers = /\b(me|konse|kaun|kya|hai|he|mujhe|ko|ki|ke liye)\b/.test(t);
+  const bengaliMarkers = /\b(te|bhalo|kara|chhe|kichhu|kono|jodi|ebong)\b/.test(t);
+  if (hindiMarkers) return "hi";
+  if (bengaliMarkers) return "bn";
+  return "en";
+}
+
+const doctorFraming: Record<
+  "en" | "bn" | "hi",
+  { intro: (loc: string) => string; conclusion: string }
+> = {
+  en: {
+    intro: (loc) =>
+      `I can't personally vouch for anyone, but here are some options around ${loc} you can check out:`,
+    conclusion:
+      "Always double-check reviews, opening hours, and your insurance/coverage before you book.",
+  },
+  bn: {
+    intro: (loc) =>
+      `আমি কারো জন্য ব্যক্তিগতভাবে গ্যারান্টি দিতে পারি না, তবে এখানে ${loc} এর আশেপাশে কিছু অপশন আছে যা তুমি দেখতে পারো:`,
+    conclusion:
+      "বুক করার আগে সবসময় রিভিউ, খোলার সময় এবং ইন্স্যুরেন্স/কভারেজ চেক করে নাও।",
+  },
+  hi: {
+    intro: (loc) =>
+      `मैं किसी की व्यक्तिगत तौर पर गारंटी नहीं दे सकती, लेकिन यहाँ ${loc} के आसपास कुछ विकल्प हैं जो तुम देख सकती हो:`,
+    conclusion:
+      "बुक करने से पहले हमेशा रिव्यू, खुलने के समय और अपने इंश्योरेंस/कवरेज को ज़रूर चेक कर लो।",
+  },
+};
+
+function ShareIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className ?? "h-5 w-5"}
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      aria-hidden
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+      />
+    </svg>
+  );
+}
+
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -61,6 +119,9 @@ export default function Home() {
   const [historyView, setHistoryView] = useState<"chats" | "journal">("chats");
   const [periodEntries, setPeriodEntries] = useState<PeriodEntry[]>([]);
   const [userLocation, setUserLocation] = useState("");
+  const [sharePreview, setSharePreview] = useState<
+    null | { type: "current" } | { type: "saved"; chat: SavedChat }
+  >(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -641,49 +702,76 @@ export default function Home() {
     setChatHistory((prev) => prev.filter((chat) => chat.id !== id));
   }
 
-  async function handleShareChat() {
-    if (messages.length === 0) return;
-
-    const plainMessages = messages
+  function getShareBody(
+    msgs: Message[],
+    opts?: { title?: string; createdAt?: string }
+  ): { title: string; subheader: string; body: string; previewLines: string[] } {
+    const plainMessages = msgs
       .filter((m) => m.content && m.content !== "(image attached)")
-      .map((m) => `${m.role === "user" ? "You" : "Her Chat"}: ${m.content}`)
-      .join("\n\n");
-
-    const now = new Date();
-    const displayDate = now.toLocaleDateString(undefined, {
+      .map((m) => `${m.role === "user" ? "You" : "Her Chat"}: ${m.content}`);
+    const plainBlock = plainMessages.join("\n\n");
+    const date = opts?.createdAt ? new Date(opts.createdAt) : new Date();
+    const displayDate = date.toLocaleDateString(undefined, {
       month: "short",
       day: "numeric",
       year: "numeric",
     });
-    const displayTime = now.toLocaleTimeString(undefined, {
+    const displayTime = date.toLocaleTimeString(undefined, {
       hour: "2-digit",
       minute: "2-digit",
     });
-
     const header = "Conversation from Her Chat 💗";
     const subheader = `Shared on ${displayDate} at ${displayTime}`;
     const divider = "────────────────────────";
-    const body = `${header}\n${subheader}\n${divider}\n\n${plainMessages}`;
+    const body = `${header}\n${subheader}\n${divider}\n\n${plainBlock}`;
+    return {
+      title: opts?.title ?? "Current conversation",
+      subheader: `${displayDate} at ${displayTime}`,
+      body,
+      previewLines: plainMessages.slice(0, 4),
+    };
+  }
 
+  function openSharePreviewCurrent() {
+    if (messages.length === 0) return;
+    setSharePreview({ type: "current" });
+  }
+
+  function openSharePreviewSaved(chat: SavedChat) {
+    setSharePreview({ type: "saved", chat });
+  }
+
+  async function doShareCopy(
+    msgs: Message[],
+    opts?: { title?: string; createdAt?: string }
+  ): Promise<boolean> {
+    const { body } = getShareBody(msgs, opts);
     try {
-      if (typeof navigator !== "undefined") {
-        const nav = navigator as any;
-        if (nav.share) {
-          await nav.share({
-            title: "Her Chat",
-            text: body,
-          });
-          return;
-        }
-        if (navigator.clipboard?.writeText) {
-          await navigator.clipboard.writeText(body);
-          window.alert("Chat copied to your clipboard. You can paste it into any app.");
-          return;
-        }
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(body);
+        return true;
       }
     } catch {
-      // ignore share errors
+      // ignore
     }
+    return false;
+  }
+
+  async function doShareNative(
+    msgs: Message[],
+    opts?: { title?: string; createdAt?: string }
+  ): Promise<boolean> {
+    const { body } = getShareBody(msgs, opts);
+    try {
+      const nav = navigator as { share?: (x: { title: string; text: string }) => Promise<void> };
+      if (nav.share) {
+        await nav.share({ title: "Her Chat", text: body });
+        return true;
+      }
+    } catch {
+      // ignore
+    }
+    return false;
   }
 
   async function handleSend(e: React.FormEvent) {
@@ -794,14 +882,13 @@ export default function Home() {
             ? `I couldn't load clinic results. Google returned: ${apiError}\n\nIf you're setting this app up: enable Places API in Google Cloud, turn on billing, and ensure your API key has no application restriction blocking server requests (or allow your server IP).\n\n${fallbackLine}`
             : `I couldn't pull up specific clinics right now, but you can still search near you.\n\n${fallbackLine}`;
         } else {
+          const framing = doctorFraming["en"];
           const lines = places.slice(0, 3).map((p) => {
             const addr = p.address ? ` — ${p.address}` : "";
             return `• ${p.name}${addr}\n  Open in Maps: ${p.mapsUrl}`;
           });
           reply =
-            `I can't personally vouch for anyone, but here are some options around ${loc} you can check out:\n\n` +
-            lines.join("\n") +
-            `\n\nAlways double-check reviews, opening hours, and your insurance/coverage before you book.`;
+            framing.intro(loc) + "\n\n" + lines.join("\n") + "\n\n" + framing.conclusion;
         }
 
         const assistantMessage: Message = {
@@ -809,7 +896,11 @@ export default function Home() {
           role: "assistant",
           content: reply,
           mapQuery,
-          ...(places.length > 0 && { places: places.slice(0, 3), placesLocation: loc }),
+          ...(places.length > 0 && {
+            places: places.slice(0, 3),
+            placesLocation: loc,
+            framingLang: "en" as const,
+          }),
         };
         setMessages((prev) => [...prev, assistantMessage]);
       } catch (err) {
@@ -1188,13 +1279,6 @@ export default function Home() {
                   className="hidden rounded-2xl border border-[#e9e0f0] bg-white px-3 py-1.5 text-[var(--text-caption)] text-[#5c4d5a] shadow-sm hover:bg-[#f5f3ff] hover:text-[#6d28d9] sm:inline-flex"
                 >
                   ✨ New chat
-                </button>
-                <button
-                  type="button"
-                  onClick={handleShareChat}
-                  className="hidden rounded-2xl border border-[#e9e0f0] bg-white px-3 py-1.5 text-[var(--text-caption)] text-[#5c4d5a] shadow-sm hover:bg-[#f5f3ff] hover:text-[#6d28d9] sm:inline-flex"
-                >
-                  Share chat
                 </button>
                 <span
                   className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.7rem] font-medium ${
@@ -1791,9 +1875,21 @@ export default function Home() {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
+                                openSharePreviewSaved(chat);
+                              }}
+                              className="ml-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#e9e0f0] bg-[#f5f3ff] text-[#6d28d9] hover:bg-[#ede9fe]"
+                              aria-label="Share this chat"
+                              title="Share this chat"
+                            >
+                              <ShareIcon className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
                                 handleDeleteChat(chat.id);
                               }}
-                              className="ml-2 inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#f5c2d6] bg-[#fdf2f8] text-[0.7rem] text-[#be185d] hover:bg-[#fee2e2]"
+                              className="ml-1 inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#f5c2d6] bg-[#fdf2f8] text-[0.7rem] text-[#be185d] hover:bg-[#fee2e2]"
                               aria-label="Delete this chat"
                             >
                               🗑️
@@ -1962,7 +2058,7 @@ export default function Home() {
                               return m.role === "assistant" && doctorData && doctorData.places.length > 0 ? (
                               <div className="space-y-3">
                                 <p className="text-[#5c4d5a]">
-                                  I can&apos;t personally vouch for anyone, but here are some options around {doctorData.location || "you"} you can check out:
+                                  {doctorFraming[m.framingLang ?? "en"].intro(doctorData.location || "you")}
                                 </p>
                                 <ul className="space-y-3">
                                   {doctorData.places.map((p, i) => (
@@ -1989,7 +2085,7 @@ export default function Home() {
                                   ))}
                                 </ul>
                                 <p className="text-[0.8125rem] text-[#7a6d7a]">
-                                  Always double-check reviews, opening hours, and your insurance/coverage before you book.
+                                  {doctorFraming[m.framingLang ?? "en"].conclusion}
                                 </p>
                               </div>
                             ) : (
@@ -2067,17 +2163,29 @@ export default function Home() {
                   aria-label="Upload image"
                 />
                 {!showSearch && (
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[#e9e0f0] bg-white text-[#7a6d7a] hover:bg-[#f5f3ff] hover:text-[#6d28d9] focus:outline-none focus:ring-2 focus:ring-[#c4b5fd]/40"
-                    title="Attach image"
-                    aria-label="Attach image"
-                  >
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[#e9e0f0] bg-white text-[#7a6d7a] hover:bg-[#f5f3ff] hover:text-[#6d28d9] focus:outline-none focus:ring-2 focus:ring-[#c4b5fd]/40"
+                      title="Attach image"
+                      aria-label="Attach image"
+                    >
+                      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={openSharePreviewCurrent}
+                      disabled={messages.length === 0}
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-[#e9e0f0] bg-white text-[#7a6d7a] hover:bg-[#f5f3ff] hover:text-[#6d28d9] focus:outline-none focus:ring-2 focus:ring-[#c4b5fd]/40 disabled:opacity-50 disabled:cursor-not-allowed"
+                      title="Share chat"
+                      aria-label="Share chat"
+                    >
+                      <ShareIcon className="h-5 w-5" />
+                    </button>
+                  </>
                 )}
                 <input
                   ref={searchInputRef}
@@ -2134,6 +2242,104 @@ export default function Home() {
           </div>
         </section>
       </main>
+
+      {/* Share preview modal: card-like preview of the chat with Copy / Share */}
+      {sharePreview ? (
+        (() => {
+          const msgs =
+            sharePreview.type === "current"
+              ? messages
+              : sharePreview.chat.messages;
+          const opts =
+            sharePreview.type === "saved"
+              ? { title: sharePreview.chat.title, createdAt: sharePreview.chat.createdAt }
+              : undefined;
+          const { title, subheader } = getShareBody(msgs, opts);
+          const previewMessages = msgs
+            .filter((m) => m.content && m.content !== "(image attached)")
+            .slice(0, 4);
+          return (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+              onClick={() => setSharePreview(null)}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="share-preview-title"
+            >
+              <div
+                className="w-full max-w-md rounded-3xl border border-pink-200/60 bg-white shadow-[0_20px_60px_rgba(0,0,0,0.15),0_0_0_1px_rgba(244,114,182,0.1)]"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="border-b border-pink-100/80 bg-gradient-to-r from-[#fdf2f8] to-[#faf5ff] px-5 py-4 rounded-t-3xl">
+                  <h2 id="share-preview-title" className="font-semibold text-[#2d2430] text-[var(--text-small)]">
+                    {title}
+                  </h2>
+                  <p className="mt-0.5 text-[var(--text-caption)] text-[#7a6d7a]">
+                    {subheader}
+                  </p>
+                </div>
+                <div className="px-4 py-4 max-h-64 overflow-y-auto space-y-2">
+                  {previewMessages.map((m) => (
+                    <div
+                      key={m.id}
+                      className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+                    >
+                      <span
+                        className={`max-w-[85%] rounded-2xl px-3 py-2 text-[0.8125rem] leading-snug ${
+                          m.role === "user"
+                            ? "bg-gradient-to-br from-[#ec4899] to-[#a78bfa] text-white"
+                            : "bg-[#f5f3ff] text-[#2d2430] ring-1 ring-pink-200/40"
+                        }`}
+                      >
+                        {m.content.length > 120 ? m.content.slice(0, 120) + "…" : m.content}
+                      </span>
+                    </div>
+                  ))}
+                  {previewMessages.length === 0 && (
+                    <p className="text-center text-[var(--text-caption)] text-[#9a8d98] py-2">
+                      No messages to preview
+                    </p>
+                  )}
+                </div>
+                <div className="flex flex-wrap items-center justify-end gap-2 border-t border-pink-100/80 px-4 py-3 rounded-b-3xl bg-[#fdf2f8]/30">
+                  <button
+                    type="button"
+                    onClick={() => setSharePreview(null)}
+                    className="rounded-2xl border border-[#e9e0f0] bg-white px-3 py-2 text-[var(--text-caption)] text-[#5c4d5a] hover:bg-[#f5f3ff]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const ok = await doShareCopy(msgs, opts);
+                      if (ok) setSharePreview(null);
+                    }}
+                    className="rounded-2xl border border-[#c4b5fd] bg-[#f5f3ff] px-3 py-2 text-[var(--text-caption)] font-medium text-[#6d28d9] hover:bg-[#ede9fe]"
+                  >
+                    Copy to clipboard
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const hasNativeShare =
+                        typeof navigator !== "undefined" && (navigator as { share?: unknown }).share;
+                      const ok = hasNativeShare
+                        ? await doShareNative(msgs, opts)
+                        : await doShareCopy(msgs, opts);
+                      if (ok) setSharePreview(null);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded-2xl bg-gradient-to-r from-[#c2417a] to-[#9333ea] px-3 py-2 text-[var(--text-caption)] font-medium text-white shadow-sm hover:opacity-90"
+                  >
+                    <ShareIcon className="h-4 w-4" />
+                    Share
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()
+      ) : null}
     </div>
   );
 }
