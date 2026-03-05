@@ -193,17 +193,71 @@ export default function Home() {
     .sort(([, a], [, b]) => b - a)
     .slice(0, 6);
 
-  const last30Days = (() => {
+  const lastSixMonthsDays = (() => {
     const out: { date: string; flow?: PeriodFlow }[] = [];
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const date = d.toISOString().slice(0, 10);
+    const today = new Date();
+    const start = new Date(today);
+    start.setMonth(start.getMonth() - 6);
+
+    const cursor = new Date(start);
+    while (cursor <= today) {
+      const date = cursor.toISOString().slice(0, 10);
       const entry = periodEntries.find((p) => p.date === date);
       out.push({ date, flow: entry?.flow });
+      cursor.setDate(cursor.getDate() + 1);
     }
+
     return out;
   })();
+
+  const periodChartWidth = 560;
+  const periodChartStartX = 32;
+  const periodChartTopY = 52;
+  const periodChartRows = 7; // GitHub-style rows
+  const periodChartTotalDays = Math.max(lastSixMonthsDays.length, 1);
+  const periodChartColumns = Math.max(Math.ceil(periodChartTotalDays / periodChartRows), 1);
+  const periodChartCellWidth = periodChartWidth / periodChartColumns;
+  const periodChartCellHeight = 14;
+  const periodChartCellGapX = 2;
+  const periodChartCellGapY = 4;
+  const periodChartBarWidth = Math.max(4, periodChartCellWidth - periodChartCellGapX);
+  const periodChartBarHeight = periodChartCellHeight;
+  const periodChartGridBottom =
+    periodChartTopY + periodChartRows * (periodChartCellHeight + periodChartCellGapY);
+  const periodChartSymptomsTop = periodChartGridBottom + 28;
+  const periodChartSvgHeight =
+    periodChartSymptomsTop +
+    (topSymptoms.length > 0 ? 55 + topSymptoms.length * 28 : 70);
+  const monthFormatter = new Intl.DateTimeFormat(undefined, { month: "short" });
+  const periodChartMonthLabels = (() => {
+    const labels: { x: number; text: string }[] = [];
+    let lastKey = "";
+    lastSixMonthsDays.forEach((day, i) => {
+      const d = new Date(day.date);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      if (key !== lastKey) {
+        const col = Math.floor(i / periodChartRows);
+        const x =
+          periodChartStartX + col * periodChartCellWidth + periodChartBarWidth / 2;
+        labels.push({ x, text: monthFormatter.format(d) });
+        lastKey = key;
+      }
+    });
+    return labels;
+  })();
+  const periodChartYearRangeLabel = (() => {
+    if (lastSixMonthsDays.length === 0) return "";
+    const firstYear = new Date(lastSixMonthsDays[0].date).getFullYear();
+    const lastYear = new Date(
+      lastSixMonthsDays[lastSixMonthsDays.length - 1].date,
+    ).getFullYear();
+    return firstYear === lastYear ? `${firstYear}` : `${firstYear}–${lastYear}`;
+  })();
+  const periodChartTitle = periodChartYearRangeLabel
+    ? `Period days (last 6 months, ${periodChartYearRangeLabel})`
+    : "Period days (last 6 months)";
+  const periodChartWeekdayRowIndices = [0, 1, 2, 3, 4, 5, 6] as const;
+  const periodChartWeekdayRowLabels = ["M", "T", "W", "T", "F", "S", "S"] as const;
   const periodFlowColors: Record<PeriodFlow, string> = {
     heavy: "#be123c",
     medium: "#e11d48",
@@ -1682,25 +1736,64 @@ export default function Home() {
                     </div>
                     <div className="min-h-[200px] w-full">
                       <svg
-                        viewBox="0 0 600 320"
+                        viewBox={`0 0 600 ${periodChartSvgHeight}`}
                         className="h-auto w-full max-w-full"
                         aria-label="Cycle and symptom chart"
                       >
-                        <rect width="600" height="320" fill="#fdf2f8" />
-                        <text x="300" y="22" textAnchor="middle" fill="#831843" fontSize="14" fontWeight="600" fontFamily="system-ui, sans-serif">
-                          Period days (last 30 days)
+                        <rect width="600" height={periodChartSvgHeight} fill="#fdf2f8" />
+                        <text x="300" y="26" textAnchor="middle" fill="#9d174d" fontSize="15" fontWeight="700" fontFamily="system-ui, sans-serif">
+                          {periodChartTitle}
                         </text>
-                        {last30Days.map((day, i) => {
-                          const x = 20 + (i / 29) * 560;
+                        {periodChartMonthLabels.map((m) => (
+                          <text
+                            key={`${m.text}-${m.x}`}
+                            x={m.x}
+                            y={periodChartTopY - 10}
+                            textAnchor="middle"
+                            fill="#7c3aed"
+                            fontSize="10"
+                            fontWeight="500"
+                            fontFamily="system-ui, sans-serif"
+                          >
+                            {m.text}
+                          </text>
+                        ))}
+                        {periodChartWeekdayRowLabels.map((label, index) => {
+                          const rowIndex = periodChartWeekdayRowIndices[index];
+                          const y =
+                            periodChartTopY +
+                            rowIndex * (periodChartCellHeight + periodChartCellGapY) +
+                            periodChartCellHeight / 2 +
+                            2;
+                          return (
+                            <text
+                              key={label}
+                              x="24"
+                              y={y}
+                              textAnchor="end"
+                              fill="#a5b4fc"
+                              fontSize="9"
+                              fontWeight="500"
+                              fontFamily="system-ui, sans-serif"
+                            >
+                              {label}
+                            </text>
+                          );
+                        })}
+                        {lastSixMonthsDays.map((day, i) => {
+                          const col = Math.floor(i / periodChartRows);
+                          const row = i % periodChartRows;
+                          const x = periodChartStartX + col * periodChartCellWidth;
+                          const y = periodChartTopY + row * (periodChartCellHeight + periodChartCellGapY);
                           const hasFlow = day.flow != null;
                           const fill = hasFlow ? periodFlowColors[day.flow!] : "#e9e0f0";
                           return (
                             <g key={day.date}>
                               <rect
                                 x={x}
-                                y={36}
-                                width={14}
-                                height={24}
+                                y={y}
+                                width={periodChartBarWidth}
+                                height={periodChartBarHeight}
                                 rx={3}
                                 fill={fill}
                                 stroke={hasFlow ? "#be185d40" : "#d4d4d8"}
@@ -1709,12 +1802,12 @@ export default function Home() {
                             </g>
                           );
                         })}
-                        <text x="20" y="88" fill="#5b21b6" fontSize="12" fontWeight="600" fontFamily="system-ui, sans-serif">
+                        <text x="20" y={periodChartSymptomsTop} fill="#5b21b6" fontSize="12" fontWeight="600" fontFamily="system-ui, sans-serif">
                           Symptoms
                         </text>
                         {topSymptoms.length > 0 ? (
                           topSymptoms.map(([tag, count], i) => {
-                            const y = 100 + i * 28;
+                            const y = periodChartSymptomsTop + 18 + i * 28;
                             const maxCount = Math.max(...topSymptoms.map(([, c]) => c), 1);
                             const barW = (count / maxCount) * 200;
                             return (
@@ -1730,11 +1823,11 @@ export default function Home() {
                             );
                           })
                         ) : (
-                          <text x="20" y="115" fill="#9a8d98" fontSize="11" fontFamily="system-ui, sans-serif">
+                          <text x="20" y={periodChartSymptomsTop + 18} fill="#9a8d98" fontSize="11" fontFamily="system-ui, sans-serif">
                             No journal tags yet
                           </text>
                         )}
-                        <text x="20" y="300" fill="#9a8d98" fontSize="9" fontFamily="system-ui, sans-serif">
+                        <text x="20" y={periodChartSymptomsTop + (topSymptoms.length > 0 ? 30 + topSymptoms.length * 28 : 45)} fill="#9a8d98" fontSize="9" fontFamily="system-ui, sans-serif">
                           Her Chat · For personal reference only
                         </text>
                       </svg>

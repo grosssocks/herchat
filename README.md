@@ -30,7 +30,8 @@ Summary of updates made since the last README update:
 - **Vercel build** — Resolved TypeScript error in `app/api/chat/route.ts` for Gemini `generateContent` (contents typed as `Part` and cast for the SDK so the build passes).
 
 ### Dashboard
-- **Visuals** — Dashboard cards restyled with gradients, icons, and shadows. New “Your cycle at a glance” card with an SVG chart: last 30 days as colored bars (by flow), symptom horizontal bars from journal tags, and a “Her Chat” footer.
+- **Visuals** — Dashboard cards restyled with gradients, icons, and shadows. The “Your cycle at a glance” card now shows the **last 6 months** of period days in a GitHub-style **daily grid** (rows by weekday, columns by date) with color by flow, plus a footer and symptom summary underneath.
+- **Labels** — Month names run across the top of the grid, weekday initials (`M T W T F S S`) along the left, and the chart title includes the year range (e.g. “Period days (last 6 months, 2025–2026)”) so timing is immediately clear.
 - **Download chart** — “Download chart” button exports the cycle/symptom SVG as a PNG (via canvas) for users to save or share.
 - **Education from dashboard** — Dashboard header has “← Back to chat” and a dedicated “Education” button that opens Education and closes the dashboard (no need to go back to chat first). Menu “Education” also closes the dashboard when opened.
 
