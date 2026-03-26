@@ -5,12 +5,6 @@ type DoctorsRequestBody = {
   intent?: "gyn" | "sexual-health" | "urgent";
 };
 
-type PlaceResult = {
-  name: string;
-  formatted_address?: string;
-  place_id?: string;
-};
-
 type DoctorsResponse = {
   places: {
     name: string;
@@ -19,52 +13,85 @@ type DoctorsResponse = {
   }[];
 };
 
-function getPlacesApiKey() {
-  const key = process.env.GOOGLE_PLACES_API_KEY?.trim();
-  if (!key) {
-    throw new Error(
-      "GOOGLE_PLACES_API_KEY is not set. Add it to .env.local and restart the dev server.",
-    );
-  }
-  return key;
+type NominatimResult = {
+  lat: string;
+  lon: string;
+};
+
+type OverpassElement = {
+  type: string;
+  id: number;
+  lat?: number;
+  lon?: number;
+  center?: { lat: number; lon: number };
+  tags?: Record<string, string>;
+};
+
+async function geocode(location: string): Promise<{ lat: number; lon: number } | null> {
+  const url = new URL("https://nominatim.openstreetmap.org/search");
+  url.searchParams.set("q", location);
+  url.searchParams.set("format", "json");
+  url.searchParams.set("limit", "1");
+  const res = await fetch(url.toString(), {
+    headers: { "User-Agent": "herchat/1.0 (https://github.com/grosssocks/herchat)" },
+  });
+  const data = (await res.json()) as NominatimResult[];
+  if (!data.length) return null;
+  return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon) };
 }
 
-function buildQuery(intent: DoctorsRequestBody["intent"], location: string) {
-  const base =
+function buildOverpassQuery(intent: DoctorsRequestBody["intent"], lat: number, lon: number): string {
+  const radius = 5000;
+  const around = `(around:${radius},${lat},${lon})`;
+
+  const filters =
     intent === "sexual-health"
-      ? "sexual health clinic"
+      ? [
+          `node["healthcare"="sexual_health"]${around};`,
+          `way["healthcare"="sexual_health"]${around};`,
+          `node["amenity"="clinic"]${around};`,
+          `way["amenity"="clinic"]${around};`,
+        ]
       : intent === "urgent"
-        ? "urgent care"
-        : "gynecologist";
-  return `${base} in ${location}`;
+        ? [
+            `node["amenity"="hospital"]${around};`,
+            `way["amenity"="hospital"]${around};`,
+            `node["amenity"="clinic"]${around};`,
+            `way["amenity"="clinic"]${around};`,
+          ]
+        : [
+            `node["healthcare"="gynaecologist"]${around};`,
+            `way["healthcare"="gynaecologist"]${around};`,
+            `node["healthcare"="doctor"]["speciality"="gynaecology"]${around};`,
+            `node["amenity"="clinic"]["healthcare"]${around};`,
+            `way["amenity"="clinic"]["healthcare"]${around};`,
+            `node["amenity"="hospital"]${around};`,
+            `way["amenity"="hospital"]${around};`,
+          ];
+
+  return `[out:json][timeout:25];\n(\n  ${filters.join("\n  ")}\n);\nout center 10;`;
 }
 
-async function fetchPlaces(
-  apiKey: string,
-  query: string,
-): Promise<{ results: PlaceResult[]; status: string; error_message?: string }> {
-  const url = new URL("https://maps.googleapis.com/maps/api/place/textsearch/json");
-  url.searchParams.set("query", query);
-  url.searchParams.set("key", apiKey);
-  const res = await fetch(url.toString());
-  const data = (await res.json()) as {
-    results?: PlaceResult[];
-    status?: string;
-    error_message?: string;
-  };
-  if (!res.ok) {
-    console.error("[Her Chat] Places HTTP error:", res.status, data.error_message ?? data);
-    return {
-      results: [],
-      status: "HTTP_ERROR",
-      error_message: data.error_message ?? `HTTP ${res.status}`,
-    };
-  }
-  return {
-    results: data.results ?? [],
-    status: data.status ?? "UNKNOWN",
-    error_message: data.error_message,
-  };
+function extractAddress(tags: Record<string, string>): string {
+  if (tags["addr:full"]) return tags["addr:full"];
+  const parts = [
+    tags["addr:housenumber"],
+    tags["addr:street"],
+    tags["addr:suburb"],
+    tags["addr:city"],
+    tags["addr:state"],
+  ].filter(Boolean);
+  return parts.join(", ");
+}
+
+async function fetchOverpass(query: string): Promise<OverpassElement[]> {
+  const res = await fetch("https://overpass-api.de/api/interpreter", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `data=${encodeURIComponent(query)}`,
+  });
+  const data = (await res.json()) as { elements?: OverpassElement[] };
+  return data.elements ?? [];
 }
 
 export async function POST(req: NextRequest) {
@@ -74,75 +101,48 @@ export async function POST(req: NextRequest) {
     const intent = body.intent ?? "gyn";
 
     if (!location) {
-      return new Response(
-        JSON.stringify({ error: "Location is required." }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        },
-      );
+      return new Response(JSON.stringify({ error: "Location is required." }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
-    const apiKey = getPlacesApiKey();
-    const primaryQuery = buildQuery(intent, location);
-
-    let data = await fetchPlaces(apiKey, primaryQuery);
-
-    if (data.status && data.status !== "OK" && data.status !== "ZERO_RESULTS") {
-      console.error("[Her Chat] Google Places API:", data.status, data.error_message);
-      return new Response(
-        JSON.stringify({
-          error: data.error_message ?? "Places API error.",
-          places: [],
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        },
-      );
+    const coords = await geocode(location);
+    if (!coords) {
+      console.debug("[Her Chat] Could not geocode location:", location);
+      return new Response(JSON.stringify({ places: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
-    let results = data.results;
+    const query = buildOverpassQuery(intent, coords.lat, coords.lon);
+    const elements = await fetchOverpass(query);
 
-    if (results.length === 0 && intent === "gyn") {
-      const fallbackQueries = [
-        `OB-GYN clinic ${location}`,
-        `gynecologist ${location}`,
-        `women health clinic ${location}`,
-      ];
-      for (const q of fallbackQueries) {
-        const next = await fetchPlaces(apiKey, q);
-        if (next.status === "OK" && (next.results?.length ?? 0) > 0) {
-          results = next.results;
-          console.debug("[Her Chat] Places found with fallback query:", q);
-          break;
-        }
-      }
+    const seenIds = new Set<number>();
+    const places: DoctorsResponse["places"] = [];
+
+    for (const el of elements) {
+      if (seenIds.has(el.id)) continue;
+      seenIds.add(el.id);
+
+      const tags = el.tags ?? {};
+      const name = tags["name"] ?? tags["operator"] ?? "Clinic";
+      const address = extractAddress(tags);
+      const lat = el.lat ?? el.center?.lat;
+      const lon = el.lon ?? el.center?.lon;
+      const mapsUrl =
+        lat && lon
+          ? `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`
+          : `https://www.google.com/maps/search/${encodeURIComponent(`${name} ${location}`)}`;
+
+      places.push({ name, address, mapsUrl });
+      if (places.length >= 5) break;
     }
 
-    if (results.length === 0) {
-      console.debug("[Her Chat] No places for location:", location);
+    if (places.length === 0) {
+      console.debug("[Her Chat] No places found via OSM for:", location, intent);
     }
-
-    const seenIds = new Set<string>();
-    const uniqueResults = results.filter((r) => {
-      const id = r.place_id ?? r.name;
-      if (seenIds.has(id)) return false;
-      seenIds.add(id);
-      return true;
-    });
-
-    const places: DoctorsResponse["places"] = uniqueResults.slice(0, 5).map((r) => {
-      const address = r.formatted_address ?? "";
-      const mapsUrl = r.place_id
-        ? `https://www.google.com/maps/place/?q=place_id:${encodeURIComponent(r.place_id)}`
-        : `https://www.google.com/maps/search/${encodeURIComponent(`${r.name} ${location}`)}`;
-      return {
-        name: r.name,
-        address,
-        mapsUrl,
-      };
-    });
 
     return new Response(JSON.stringify({ places }), {
       status: 200,
@@ -151,15 +151,9 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("Doctors API error:", message, error);
-    return new Response(
-      JSON.stringify({
-        error: message,
-      }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
+    return new Response(JSON.stringify({ error: message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 }
-
