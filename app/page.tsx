@@ -199,12 +199,12 @@ export default function Home() {
     const start = new Date(today);
     start.setMonth(start.getMonth() - 6);
 
-    const cursor = new Date(start);
-    while (cursor <= today) {
-      const date = cursor.toISOString().slice(0, 10);
+    const day = new Date(start);
+    while (day <= today) {
+      const date = day.toISOString().slice(0, 10);
       const entry = periodEntries.find((p) => p.date === date);
       out.push({ date, flow: entry?.flow });
-      cursor.setDate(cursor.getDate() + 1);
+      day.setDate(day.getDate() + 1);
     }
 
     return out;
@@ -838,6 +838,7 @@ export default function Home() {
     // Detect doctor/gyno search in any language (e.g. "gyno", "gynecologist", "daktar", "doctor").
     const doctorIntent =
       lower.includes("gyno") ||
+      lower.includes("gynac") ||
       lower.includes("gynae") ||
       lower.includes("gynecologist") ||
       lower.includes("gynaecologist") ||
@@ -846,23 +847,38 @@ export default function Home() {
       lower.includes("daktar") ||
       lower.includes("doctor") ||
       lower.includes("doctors") ||
+      lower.includes("clinic") ||
+      lower.includes("hospital") ||
       lower.includes("local doctor") ||
       lower.includes("doctors list") ||
       lower.includes("doctors near") ||
       lower.includes("list of doctors") ||
       lower.includes("find me a doctor") ||
-      lower.includes("doctor near me");
+      lower.includes("doctor near me") ||
+      lower.includes("near me");
 
     // Common city names to extract from message (e.g. "kolkata te bhalo gyno" → use Kolkata).
     const cityPatterns: { match: RegExp; location: string }[] = [
       { match: /\bkolkata\b/i, location: "Kolkata, India" },
       { match: /\bmumbai\b/i, location: "Mumbai, India" },
       { match: /\bdelhi\b/i, location: "Delhi, India" },
+      { match: /\bnew delhi\b/i, location: "New Delhi, India" },
       { match: /\bchennai\b/i, location: "Chennai, India" },
       { match: /\bbangalore\b/i, location: "Bangalore, India" },
+      { match: /\bbengaluru\b/i, location: "Bengaluru, India" },
       { match: /\bhyderabad\b/i, location: "Hyderabad, India" },
       { match: /\bpune\b/i, location: "Pune, India" },
       { match: /\bahmedabad\b/i, location: "Ahmedabad, India" },
+      { match: /\bjaipur\b/i, location: "Jaipur, India" },
+      { match: /\blucknow\b/i, location: "Lucknow, India" },
+      { match: /\bsurat\b/i, location: "Surat, India" },
+      { match: /\bpatna\b/i, location: "Patna, India" },
+      { match: /\bbhopal\b/i, location: "Bhopal, India" },
+      { match: /\bindore\b/i, location: "Indore, India" },
+      { match: /\bnagpur\b/i, location: "Nagpur, India" },
+      { match: /\bvisakhapatnam\b/i, location: "Visakhapatnam, India" },
+      { match: /\bchandigarh\b/i, location: "Chandigarh, India" },
+      { match: /\bguwahati\b/i, location: "Guwahati, India" },
     ];
     const cityFromMessage = cityPatterns.find((c) => c.match.test(trimmed))?.location ?? null;
     const loc = (cityFromMessage || userLocation.trim()) || "";
