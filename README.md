@@ -57,12 +57,13 @@ Summary of updates made since the last README update:
 - **In-app hint** — A hero badge and a line above the chat input say “Chat in any language—I’ll reply in yours” so users know they can type in any language.
 
 ### Doctor search
-- **Any-language detection** — Doctor intent is detected from keywords in any language (e.g. “gyno”, “gynae”, “gynecologist”, “gynaecologist”, “daktar”, “doctor”). Users can ask for doctors in Bengali, Hindi, Korean, English, etc., and the app still runs the doctor flow.
-- **City from message** — If the user mentions a city (e.g. Kolkata, Delhi, Mumbai, Bangalore, Chennai, Hyderabad, Pune, Ahmedabad), that city is used for the search even if they haven’t set a location in the menu.
+- **Any-language detection** — Doctor intent is detected from keywords in any language (e.g. “gyno”, “gynae”, “gynacs”, “gynecologist”, “gynaecologist”, “daktar”, “doctor”, “clinic”, “hospital”, “near me”). Users can ask for doctors in Bengali, Hindi, Korean, English, etc., and the app still runs the doctor flow.
+- **City from message** — If the user mentions a city (e.g. Kolkata, Delhi, Mumbai, Bangalore, Chennai, Hyderabad, Pune, Ahmedabad, Jaipur, Lucknow, Surat, Patna, Bhopal, Indore, Nagpur, Visakhapatnam, Chandigarh, Guwahati), that city is used for the search even if they haven’t set a location in the menu.
 - **Replies always in English** — The doctors list (intro, clinic names/addresses, conclusion), “no clinics” fallback, “no location” prompt, and error message are always shown in **English** so clinic names and search tips are consistent for everyone.
+- **Free, no billing required** — Doctor search now uses **OpenStreetMap + Overpass API** (free, no API key needed) instead of Google Places. Tries multiple public Overpass mirrors automatically for reliability.
 
 ### Footer & feedback
-- **Footer** — Site footer (SiteShell) includes “© 2026. All rights reserved.”
+- **Footer** — Site footer (SiteShell) includes “Made with care by Sujita Roy”, a Support link, and “© 2026. All rights reserved.”
 - **Give feedback** — Optional “Give feedback” link in the hamburger menu; when `NEXT_PUBLIC_FEEDBACK_FORM_URL` is set (e.g. to a Google Form), it opens the form in a new tab. See “Feedback with Google Forms” below for setup.
 
 ### Hero cards & menu
@@ -106,7 +107,7 @@ Summary of updates made since the last README update:
 
 ### Care & location
 
-- **Doctor search** — Ask in chat in any language (e.g. “doctors near me”, “kolkata te bhalo gyno”, “delhi me ache doctors”); the app detects doctor intent and, if you’ve set a location or mentioned a city, returns real clinic names, addresses, and “Open in Maps” links (Google Places API). All doctor-flow replies (list, search tips, no-location prompt) are in English.
+- **Doctor search** — Ask in chat in any language (e.g. “doctors near me”, “local gynacs near me”, “kolkata te bhalo gyno”); the app detects doctor intent and, if you’ve set a location or mentioned a city, returns real clinic names, addresses, and “Open in Maps” links (via OpenStreetMap — free, no billing). All doctor-flow replies are in English.
 - **Optional location** — Set city/country in the top menu; used for doctor suggestions and tailored education examples.
 - **Education** — In-app guides on location & care, finding doctors, period basics, discharge, pregnancy, UTIs, and STIs/safer sex.
 
@@ -134,13 +135,13 @@ Summary of updates made since the last README update:
 | UI          | **React 19**, **TypeScript 5** |
 | Styling     | **Tailwind CSS 4** |
 | AI          | **Google Generative AI** (Gemini; e.g. `gemini-2.0-flash`) for chat and image understanding |
-| Places      | **Google Places API** (and optional Maps Embed) for doctor/clinic search |
+| Places      | **OpenStreetMap + Overpass API** (free, no billing) for doctor/clinic search; **Nominatim** for geocoding |
 | Data        | **Browser localStorage** — no backend DB; chats, journal, period log, and location stay on the user’s device |
 
 ### How it was built
 
 - **App Router** — `app/page.tsx` is the main client page (chat + journal + period bar + history); `app/about/page.tsx` and `app/support/page.tsx` are static/simple pages. `app/layout.tsx` sets metadata and wraps the app in `SiteShell` (conditional footer).
-- **API routes** — `app/api/chat/route.ts` sends conversation (and optional image) to Gemini and returns the model reply. `app/api/doctors/route.ts` takes a location and intent, calls Google Places, and returns name, address, and Maps URL for clinics.
+- **API routes** — `app/api/chat/route.ts` sends conversation (and optional image) to Gemini and returns the model reply. `app/api/doctors/route.ts` takes a location and intent, geocodes via Nominatim, queries Overpass (OpenStreetMap) for nearby clinics, and returns name, address, and Maps URL.
 - **State & persistence** — React state for messages, journal, period log, history, UI toggles; `useEffect` hooks read/write to `localStorage` so data survives refresh but stays on the device.
 - **Doctor flow** — If the user message looks like a doctor request and location is set, the app calls `/api/doctors` and renders structured cards with “Open in Maps”; otherwise it can prompt to set location or return a fallback message.
 
@@ -170,17 +171,15 @@ Create `.env.local` in the project root (this file is gitignored; do not commit 
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `GEMINI_API_KEY` | Yes (for chat) | Google AI Studio API key for Gemini (chat + image). |
-| `GOOGLE_PLACES_API_KEY` | Yes (for doctor search) | Google Cloud API key with Places API enabled. |
-| `NEXT_PUBLIC_GOOGLE_MAPS_EMBED_KEY` | No | If set, doctor replies include an embedded map iframe. |
+| `GEMINI_API_KEY` | Yes (for chat) | Google AI Studio API key for Gemini (chat + image). Get one free at [aistudio.google.com](https://aistudio.google.com) — no billing required. |
 | `NEXT_PUBLIC_FEEDBACK_FORM_URL` | No | Full URL of your Google Form for user feedback. If set, "Give feedback" appears in the hamburger menu and opens this form in a new tab. |
+
+> **No Google Places / Maps billing needed.** Doctor search uses OpenStreetMap (Overpass API + Nominatim) which is completely free with no API key.
 
 Example:
 
 ```env
 GEMINI_API_KEY=your_gemini_key
-GOOGLE_PLACES_API_KEY=your_places_key
-NEXT_PUBLIC_GOOGLE_MAPS_EMBED_KEY=your_maps_embed_key
 NEXT_PUBLIC_FEEDBACK_FORM_URL=https://docs.google.com/forms/d/e/YOUR_FORM_ID/viewform
 ```
 
@@ -222,7 +221,7 @@ herchat/
 ├── app/
 │   ├── api/
 │   │   ├── chat/route.ts      # Gemini chat + image
-│   │   └── doctors/route.ts   # Google Places → clinics
+│   │   └── doctors/route.ts   # OpenStreetMap/Overpass → clinics
 │   ├── about/page.tsx         # About Her Chat + developer
 │   ├── support/page.tsx       # Support / UPI
 │   ├── layout.tsx             # Root layout, metadata, SiteShell
