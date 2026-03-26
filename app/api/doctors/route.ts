@@ -84,14 +84,29 @@ function extractAddress(tags: Record<string, string>): string {
   return parts.join(", ");
 }
 
+const OVERPASS_ENDPOINTS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.kumi.systems/api/interpreter",
+  "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+];
+
 async function fetchOverpass(query: string): Promise<OverpassElement[]> {
-  const res = await fetch("https://overpass-api.de/api/interpreter", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: `data=${encodeURIComponent(query)}`,
-  });
-  const data = (await res.json()) as { elements?: OverpassElement[] };
-  return data.elements ?? [];
+  const body = `data=${encodeURIComponent(query)}`;
+  const headers = {
+    "Content-Type": "application/x-www-form-urlencoded",
+    "User-Agent": "herchat/1.0 (https://github.com/grosssocks/herchat)",
+  };
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    try {
+      const res = await fetch(endpoint, { method: "POST", headers, body });
+      if (!res.ok) continue;
+      const data = (await res.json()) as { elements?: OverpassElement[] };
+      return data.elements ?? [];
+    } catch (err) {
+      console.warn("[Her Chat] Overpass endpoint failed:", endpoint, err);
+    }
+  }
+  return [];
 }
 
 export async function POST(req: NextRequest) {
@@ -151,8 +166,9 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("Doctors API error:", message, error);
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
+    // Return 200 with empty places so the frontend shows the search fallback, not an error banner.
+    return new Response(JSON.stringify({ places: [], error: message }), {
+      status: 200,
       headers: { "Content-Type": "application/json" },
     });
   }
